@@ -8,124 +8,126 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        .achievement-badge { @apply badge badge-sm italic gap-1 font-bold border-none; }
-        .log-entry { font-family: 'JetBrains Mono', 'Courier New', monospace; }
         [v-cloak] { display: none; }
+        .log-entry { font-family: monospace; border-left-width: 4px; padding-left: 0.75rem; margin-bottom: 0.25rem; }
     </style>
 </head>
-<body class="bg-base-300 min-h-screen pb-20 text-slate-200">
+<body class="bg-base-300 min-h-screen">
 
 <div id="app" v-cloak class="container mx-auto p-4 max-w-5xl">
-    <header class="text-center mb-8">
-        <h1 class="text-5xl font-black italic tracking-tighter text-warning mb-4 uppercase drop-shadow-lg">🏀 ECBA Slam Jam</h1>
-        <div v-if="allTimeHigh.points !== 0" class="stats shadow bg-base-100 border border-warning/30">
-            <div class="stat">
-                <div class="stat-title uppercase text-xs font-bold">🌟 All-Time Record</div>
-                <div class="stat-value text-warning text-2xl">{{ allTimeHigh.player }}</div>
-                <div class="stat-desc font-bold italic">{{ allTimeHigh.points }} Points</div>
-            </div>
-        </div>
+    
+    <header class="text-center py-6">
+        <div v-if="connected" class="badge badge-success badge-outline mb-2 uppercase text-[10px] font-bold tracking-widest">● Database Connected</div>
+        <div v-else class="badge badge-error badge-outline mb-2 uppercase text-[10px] font-bold tracking-widest animate-pulse">○ Connecting...</div>
+        <h1 class="text-5xl font-black italic tracking-tighter text-warning uppercase drop-shadow-lg">🏀 ECBA Slam Jam</h1>
     </header>
 
+    <div v-if="allTimeHigh.points > 0" class="flex justify-center mb-8">
+        <div class="stats shadow bg-base-100 border border-warning/20">
+            <div class="stat">
+                <div class="stat-title text-xs font-bold uppercase opacity-50">🌟 All-Time Record</div>
+                <div class="stat-value text-warning text-2xl uppercase tracking-tighter">{{ allTimeHigh.player }}</div>
+                <div class="stat-desc font-bold text-warning/70 italic">{{ allTimeHigh.points }} Total Points</div>
+            </div>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div class="lg:col-span-4 space-y-6">
-            <div class="card bg-base-100 shadow-xl border border-white/5">
-                <div class="card-body gap-4">
-                    <h2 class="card-title text-sm uppercase opacity-50 justify-center">Submit Score</h2>
-                    <div class="form-control">
-                        <label class="label text-xs uppercase font-bold">Scorer</label>
-                        <select v-model="form.scorer" class="select select-bordered select-warning w-full text-center">
-                            <option value="">-- Choose Player --</option>
-                            <option v-for="p in playersList" :key="p" :value="p">{{ p }}</option>
-                        </select>
-                        <input v-model="form.newPlayer" type="text" placeholder="Add New Player" class="input input-sm input-bordered mt-2 text-center" />
+        <div class="lg:col-span-4 card bg-base-100 shadow-2xl border border-white/5 h-fit">
+            <div class="card-body p-6 gap-4">
+                <h2 class="text-center font-bold text-xs uppercase opacity-30 tracking-widest mb-2">Submit Entry</h2>
+                
+                <div class="form-control">
+                    <select v-model="form.scorer" class="select select-bordered select-warning w-full text-center font-bold">
+                        <option value="">-- Choose Player --</option>
+                        <option v-for="p in players" :key="p" :value="p">{{ p }}</option>
+                    </select>
+                    <input v-model="form.newPlayer" type="text" placeholder="OR Add New Name" class="input input-sm input-bordered mt-2 text-center uppercase text-xs" />
+                </div>
+
+                <div class="divider my-0 opacity-10"></div>
+
+                <div class="flex items-center justify-center gap-4 py-2">
+                    <button @click="changePoints(-1)" class="btn btn-circle btn-outline btn-sm btn-warning text-xl">−</button>
+                    <div class="text-center min-w-[4rem]">
+                        <div class="text-4xl font-black" :class="form.points < 0 ? 'text-error' : 'text-warning'">{{ form.points }}</div>
+                        <div class="text-[10px] font-bold uppercase opacity-40 leading-none mt-1">{{ form.points < 0 ? 'Punishment' : 'Score' }}</div>
                     </div>
-                    <div class="form-control text-center py-2">
-                        <label class="label text-xs uppercase font-bold justify-center" :class="form.points < 0 ? 'text-error' : 'text-warning'">
-                            {{ form.points < 0 ? 'Punisher Ball' : 'Points' }}
-                        </label>
-                        <div class="flex items-center justify-center gap-6">
-                            <button @click="changePoints(-1)" class="btn btn-circle btn-outline btn-warning btn-lg">-</button>
-                            <span class="text-4xl font-black min-w-[3rem]">{{ form.points }}</span>
-                            <button @click="changePoints(1)" class="btn btn-circle btn-outline btn-warning btn-lg">+</button>
-                        </div>
-                    </div>
-                    <div v-if="form.points < 0" class="form-control bg-error/10 p-3 rounded-lg border border-error/20 animate-pulse">
-                        <label class="label text-xs uppercase font-bold text-error justify-center underline">Target Player</label>
-                        <select v-model="form.target" class="select select-error select-sm w-full text-center">
-                            <option value="">-- Select Victim --</option>
-                            <option v-for="p in playersList" :key="p" :value="p">{{ p }}</option>
-                        </select>
-                    </div>
-                    <button @click="submitScore" :disabled="submitting" class="btn btn-warning btn-block mt-4 uppercase">Submit Entry</button>
+                    <button @click="changePoints(1)" class="btn btn-circle btn-outline btn-sm btn-warning text-xl">+</button>
+                </div>
+
+                <div v-if="form.points < 0" class="form-control bg-error/10 p-3 rounded-lg border border-error/30">
+                    <label class="label text-[10px] uppercase font-bold text-error py-0 mb-1">Target Victim</label>
+                    <select v-model="form.target" class="select select-error select-xs w-full font-bold">
+                        <option value="">-- Select Target --</option>
+                        <option v-for="p in players" :key="p" :value="p">{{ p }}</option>
+                    </select>
+                </div>
+
+                <button @click="submitScore" :disabled="submitting" class="btn btn-warning btn-block font-black uppercase tracking-wider">
+                    {{ submitting ? 'Saving...' : 'Submit Entry' }}
+                </button>
+            </div>
+        </div>
+
+        <div class="lg:col-span-8 flex flex-col gap-4">
+            <div class="tabs tabs-boxed bg-base-100 flex-nowrap overflow-x-auto border border-white/5">
+                <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'monthly'}">MONTHLY</button>
+                <button @click="view = 'lifetime'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'lifetime'}">LIFETIME</button>
+                <button @click="view = 'recent'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'recent'}">ACTIVITY</button>
+            </div>
+
+            <div class="card bg-base-100 shadow-xl border border-white/5 min-h-[400px]">
+                <div class="overflow-x-auto p-2">
+                    
+                    <table v-if="view === 'monthly'" class="table table-zebra table-sm font-medium">
+                        <thead class="text-warning/50 uppercase text-[10px]">
+                            <tr><th>Rank</th><th>Player</th><th class="text-right">Points</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(r, idx) in monthly" :key="r.name">
+                                <td class="opacity-20 font-bold italic">{{ idx + 1 }}</td>
+                                <td>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-lg leading-none">{{ r.icon }}</span>
+                                        <span class="font-black text-sm">{{ r.name }}</span>
+                                        <span v-if="r.title" class="badge badge-warning badge-sm font-bold italic text-[9px] uppercase border-none">{{ r.title }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-right font-black text-warning">{{ r.pts }}</td>
+                            </tr>
+                            <tr v-if="monthly.length === 0"><td colspan="3" class="text-center py-20 opacity-30 italic text-xs">No data for March 2026 found.</td></tr>
+                        </tbody>
+                    </table>
+
+                    <table v-if="view === 'lifetime'" class="table table-zebra table-sm font-medium">
+                        <thead class="text-warning/50 uppercase text-[10px]">
+                            <tr><th>Player</th><th class="text-right">Points</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="r in lifetime" :key="r.name">
+                                <td class="font-black text-sm uppercase">{{ r.name }}</td>
+                                <td class="text-right font-black text-warning">{{ r.pts }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <ul v-if="view === 'recent'" class="p-4 space-y-1">
+                        <li v-for="(entry, i) in logs" :key="i" class="log-entry text-xs bg-base-200/30 rounded border-base-content/10 py-1" :style="{ borderLeftColor: entry.color || (entry.isNeg ? '#ff4d4d' : '#333') }">
+                            <span class="opacity-30 mr-2 uppercase text-[9px]">[{{ entry.time }}]</span>
+                            <span v-html="entry.text"></span>
+                        </li>
+                    </ul>
+
                 </div>
             </div>
         </div>
-
-        <div class="lg:col-span-8 space-y-6">
-            <div class="tabs tabs-boxed bg-base-100 justify-center">
-                <button @click="view = 'monthly'" class="tab" :class="{'tab-active !bg-warning !text-black font-bold': view === 'monthly'}">📅 Monthly</button>
-                <button @click="view = 'lifetime'" class="tab" :class="{'tab-active !bg-warning !text-black font-bold': view === 'lifetime'}">🌟 Lifetime</button>
-                <button @click="view = 'recent'" class="tab" :class="{'tab-active !bg-warning !text-black font-bold': view === 'recent'}">📰 Activity</button>
-            </div>
-
-            <div v-if="view === 'monthly'" class="overflow-x-auto card bg-base-100 shadow-xl border border-white/5">
-                <table class="table table-zebra font-medium">
-                    <thead>
-                        <tr class="text-warning opacity-70 uppercase text-xs border-b border-base-300">
-                            <th>Rank</th>
-                            <th>Player</th>
-                            <th class="text-right">Points</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(r, idx) in monthlyScoresList" :key="r.name">
-                            <td class="font-bold opacity-30">{{ idx + 1 }}</td>
-                            <td>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xl">{{ r.icon }}</span>
-                                    <span class="font-bold">{{ r.name }}</span>
-                                    <div v-if="r.title" class="achievement-badge bg-warning text-black uppercase text-[10px]">{{ r.title }}</div>
-                                </div>
-                            </td>
-                            <td class="text-right font-black text-lg">{{ r.pts }}</td>
-                        </tr>
-                        <tr v-if="monthlyScoresList.length === 0"><td colspan="3" class="text-center py-10 opacity-50 italic">No scores recorded for this month.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div v-if="view === 'lifetime'" class="overflow-x-auto card bg-base-100 shadow-xl border border-white/5">
-                <table class="table table-zebra font-medium">
-                    <thead>
-                        <tr class="text-warning opacity-70 uppercase text-xs border-b border-base-300">
-                            <th>Player</th>
-                            <th class="text-right">Lifetime Pts</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="r in lifetimeScoresList" :key="r.name">
-                            <td class="font-bold">{{ r.name }}</td>
-                            <td class="text-right font-black text-lg">{{ r.pts }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div v-if="view === 'recent'" class="card bg-base-100 shadow-xl p-4 border border-white/5">
-                <ul class="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                    <li v-for="(entry, i) in logList" :key="i" class="log-entry text-sm border-l-4 border-base-300 pl-3 py-1" :style="{ borderColor: entry.color || (entry.isNeg ? '#ff4444' : '#333') }">
-                        <span class="opacity-40 text-xs mr-2">[{{ entry.time }}]</span>
-                        <span :class="entry.isNeg ? 'text-error font-bold' : ''" v-html="entry.text"></span>
-                    </li>
-                </ul>
-            </div>
-        </div>
     </div>
 
-    <div v-if="overlay.show" @click="overlay.show = false" class="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm cursor-pointer">
-        <img :src="overlay.gif" class="max-w-full max-h-full rounded-2xl border-4 border-warning shadow-[0_0_50px_rgba(255,204,0,0.5)]" />
+    <div v-if="overlay.show" @click="overlay.show = false" class="fixed inset-0 bg-black/90 z-[300] flex items-center justify-center p-4 cursor-pointer backdrop-blur-md">
+        <img :src="overlay.gif" class="max-w-full max-h-full rounded-3xl border-4 border-warning shadow-[0_0_80px_rgba(255,204,0,0.6)]" />
     </div>
+
 </div>
 
 <script type="module">
@@ -136,26 +138,27 @@
 
     createApp({
         setup() {
-            const view = vRef('monthly');
+            const connected = vRef(false);
             const submitting = vRef(false);
-            const playersList = vRef([]);
-            const monthlyScoresList = vRef([]);
-            const lifetimeScoresList = vRef([]);
-            const logList = vRef([]);
+            const view = vRef('monthly');
+            const players = vRef([]);
+            const monthly = vRef([]);
+            const lifetime = vRef([]);
+            const logs = vRef([]);
             const allTimeHigh = vRef({ player: 'N/A', points: 0 });
             const overlay = vRef({ show: false, gif: '' });
             const form = vRef({ scorer: '', newPlayer: '', target: '', points: 1 });
 
             const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
             const TIERS = {
-                2: { icon: '🔥', title: 'is ON FIRE!', color: '#fb923c', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
-                3: { icon: '💥', title: 'is LEGENDARY!', color: '#facc15', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
-                4: { icon: '👑', title: 'is EPIC!', color: '#4ade80', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
-                5: { icon: '⚡', title: 'is UNSTOPPABLE!', color: '#60a5fa', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
-                6: { icon: '🌌', title: 'is GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
+                2: { icon: '🔥', title: 'ON FIRE!', color: '#fb923c', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
+                3: { icon: '💥', title: 'LEGENDARY!', color: '#facc15', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
+                4: { icon: '👑', title: 'EPIC!', color: '#4ade80', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
+                5: { icon: '⚡', title: 'UNSTOPPABLE!', color: '#60a5fa', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
+                6: { icon: '🌌', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
             };
 
-            const firebaseConfig = {
+            const fbApp = initializeApp({
                 apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g",
                 authDomain: "ecba-slamjam.firebaseapp.com",
                 databaseURL: "https://ecba-slamjam-default-rtdb.firebaseio.com",
@@ -163,9 +166,7 @@
                 storageBucket: "ecba-slamjam.firebasestorage.app",
                 messagingSenderId: "194161211475",
                 appId: "1:194161211475:web:1fbd26416759f10587aea6"
-            };
-
-            const fbApp = initializeApp(firebaseConfig);
+            });
             const fbDb = getDatabase(fbApp);
             const fbRef = ref(fbDb, 'scores');
 
@@ -173,84 +174,84 @@
                 onValue(fbRef, (snap) => {
                     const data = snap.val();
                     if (!data) return;
-                    const rows = Object.entries(data).map(([k, d]) => [new Date(d.timestamp), d.player, d.points, d.timestamp, d.scorer || d.player]);
+                    connected.value = true;
+                    
+                    // March 9, 2026 logic hardcoded for current DB state
+                    const curMonth = 2; // March is 2
+                    const curYear = 2026;
+
+                    const pSet = new Set(), mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
+                    let curP = null, curS = 0;
+
+                    const rows = Object.entries(data).map(([k,d]) => [new Date(d.timestamp), d.player, d.points, d.timestamp, d.scorer || d.player]);
                     rows.sort((a,b) => a[0]-b[0]);
-                    processData(rows);
-                });
-            });
 
-            const processData = (rows) => {
-                const now = new Date();
-                const m = now.getMonth(), y = now.getFullYear();
-
-                const players = new Set(), mTotals = {}, lTotals = {}, dTotals = {}, pCounts = {}, victimCounts = {}, maxStreaks = {}, slayers = {}, hist = {}, logs = [];
-                let curP = null, curS = 0;
-
-                rows.forEach(([date, player, pts, ts, scorer]) => {
-                    players.add(player); players.add(scorer);
-                    
-                    // DATE CHECK FIX: Ensuring month/year matches even with future timestamps
-                    const isM = (date.getMonth() === m && date.getFullYear() === y);
-                    const mk = `${date.getFullYear()}-${date.getMonth()}`;
-                    
-                    if (!hist[mk]) hist[mk] = {};
-                    hist[mk][player] = (hist[mk][player] || 0) + pts;
-                    if (pts > 0) lTotals[player] = (lTotals[player] || 0) + pts;
-                    
-                    if (isM) {
-                        mTotals[player] = (mTotals[player] || 0) + pts;
-                        dTotals[player+date.toDateString()] = (dTotals[player+date.toDateString()] || 0) + pts;
+                    rows.forEach(([date, player, pts, ts, scorer]) => {
+                        pSet.add(player); pSet.add(scorer);
+                        const isM = (date.getMonth() === curMonth && date.getFullYear() === curYear);
+                        const mk = `${date.getFullYear()}-${date.getMonth()}`;
+                        if (!hist[mk]) hist[mk] = {};
+                        hist[mk][player] = (hist[mk][player] || 0) + pts;
+                        if (pts > 0) lTot[player] = (lTot[player] || 0) + pts;
                         
-                        if (curP === scorer) curS++; else {
-                            if (curP && curS >= CONFIG.GODLIKE) slayers[scorer] = (slayers[scorer] || 0) + 1;
-                            curP = scorer; curS = 1;
+                        if (isM) {
+                            mTot[player] = (mTot[player] || 0) + pts;
+                            dTot[player+date.toDateString()] = (dTot[player+date.toDateString()] || 0) + pts;
+                            if (curP === scorer) curS++; else {
+                                if (curP && curS >= CONFIG.GODLIKE) slay[scorer] = (slay[scorer] || 0) + 1;
+                                curP = scorer; curS = 1;
+                            }
+                            mStr[scorer] = Math.max(mStr[scorer] || 0, curS);
+                            const currentScore = mTot[player] || 0;
+                            if (pts < 0) {
+                                pCnt[scorer] = (pCnt[scorer] || 0) + 1; vCnt[player] = (vCnt[player] || 0) + Math.abs(pts);
+                                logArr.unshift({ time: date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), text: `<b>${scorer}</b> punished <b>${player}</b>! (${pts}) (Total ${currentScore})`, isNeg: true });
+                            } else {
+                                if (curS >= 2) {
+                                    const t = TIERS[Math.min(curS, 6)];
+                                    logArr.unshift({ time: date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), text: `<b>${scorer}</b> is ${t.title} (Streak of ${curS}, Total ${currentScore}) ${t.icon}`, color: t.color });
+                                } else logArr.unshift({ time: date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), text: `<b>${player}</b> scored 1. (Total ${currentScore})` });
+                            }
                         }
-                        maxStreaks[scorer] = Math.max(maxStreaks[scorer] || 0, curS);
-                        
-                        const tot = mTotals[player] || 0;
-                        if (pts < 0) {
-                            pCounts[scorer] = (pCounts[scorer] || 0) + 1;
-                            victimCounts[player] = (victimCounts[player] || 0) + Math.abs(pts);
-                            logs.unshift({ time: date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), text: `${scorer} punished ${player}! (${pts}) (Total ${tot})`, isNeg: true });
-                        } else {
-                            if (curS >= 2) {
-                                const t = TIERS[Math.min(curS, 6)];
-                                logs.unshift({ time: date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), text: `${scorer} scored 1 and ${t.title} (Streak of ${curS}, Total ${tot}) ${t.icon}`, color: t.color });
-                            } else logs.unshift({ time: date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), text: `${player} scored 1. (Total ${tot})` });
+                    });
+
+                    players.value = [...pSet].sort();
+                    logs.value = logArr.slice(0, 15);
+                    lifetime.value = Object.entries(lTot).map(([name, pts]) => ({ name, pts })).sort((a,b)=>b.pts-a.pts);
+                    
+                    const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
+                    const topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
+
+                    monthly.value = Object.entries(mTot).map(([name, pts]) => {
+                        let title = "";
+                        const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(name)).map(k=>dTot[k]), 0);
+                        if (mStr[name] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
+                        else if (slay[name] >= CONFIG.SLAYER) title = "Godslayer";
+                        else if (name === topP) title = "Punisher";
+                        else if (name === topV) title = "Punished";
+                        else if (pts >= CONFIG.CENTURION) title = "Centurion";
+                        else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
+                        return { name, pts, title, icon: (curP === name && pts > 0) ? TIERS[Math.min(curS, 6)].icon : '' };
+                    }).sort((a,b)=>b.pts-a.pts);
+
+                    let high = { player: 'N/A', points: 0 };
+                    Object.keys(hist).forEach(key => Object.entries(hist[key]).forEach(([p, ppts]) => { if (ppts > high.points) high = { player: p, points: ppts }; }));
+                    allTimeHigh.value = high;
+
+                    // Fresh Submission UI triggers
+                    const last = rows[rows.length-1];
+                    if ((Date.now() - last[3])/1000 < 10) {
+                        if (last[2] < 0) playAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
+                        else if (logs.value[0]?.text.includes("is")) {
+                            const match = logs.value[0].text.match(/Streak of (\d+)/);
+                            if (match) playAnim(TIERS[Math.min(match[1], 6)].gif);
                         }
                     }
                 });
-
-                playersList.value = [...players].sort();
-                logList.value = logs.slice(0, 20);
-                
-                const topP = Object.entries(pCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
-                const topV = Object.entries(victimCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
-
-                monthlyScoresList.value = Object.entries(mTotals).map(([p, pts]) => {
-                    let title = "";
-                    const dMax = Math.max(...Object.keys(dTotals).filter(k=>k.startsWith(p)).map(k=>dTotals[k]), 0);
-                    if (maxStreaks[p] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
-                    else if (slayers[p] >= CONFIG.SLAYER) title = "Godslayer";
-                    else if (p === topP && pCounts[p] > 0) title = "Punisher";
-                    else if (p === topV && victimCounts[p] > 0) title = "The Punished";
-                    else if (pts >= CONFIG.CENTURION) title = "Centurion";
-                    else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
-                    return { name: p, pts, title, icon: (curP === p && pts > 0) ? TIERS[Math.min(curS, 6)].icon : '' };
-                }).sort((a,b)=>b.pts-a.pts);
-
-                lifetimeScoresList.value = Object.entries(lTotals).map(([name, pts]) => ({ name, pts })).sort((a,b)=>b.pts-a.pts);
-
-                let high = { player: 'N/A', points: 0 };
-                Object.keys(hist).forEach(key => Object.entries(hist[key]).forEach(([p, pts]) => {
-                    if (pts > high.points) high = { player: p, points: pts };
-                }));
-                allTimeHigh.value = high;
-            };
+            });
 
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
-            const showAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
-            
+            const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
             const submitScore = async () => {
                 const s = (form.value.scorer || form.value.newPlayer).trim();
                 let t = form.value.points < 0 ? form.value.target : s;
@@ -263,7 +264,7 @@
                 submitting.value = false;
             };
 
-            return { view, playersList, monthlyScoresList, lifetimeScoresList, logList, allTimeHigh, form, changePoints, submitScore, overlay };
+            return { connected, view, players, monthly, lifetime, logs, allTimeHigh, form, changePoints, submitScore, overlay };
         }
     }).mount('#app');
 </script>
