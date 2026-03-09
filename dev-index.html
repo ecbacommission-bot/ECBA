@@ -12,7 +12,7 @@
         .log-entry { font-family: monospace; border-left-width: 4px; padding-left: 0.75rem; margin-bottom: 0.25rem; }
     </style>
 </head>
-<body class="bg-base-300 min-h-screen">
+<body class="bg-base-300 min-h-screen text-slate-200">
 
 <div id="app" v-cloak class="container mx-auto p-4 max-w-5xl">
     
@@ -20,17 +20,8 @@
         <div v-if="connected" class="badge badge-success badge-outline mb-2 uppercase text-[10px] font-bold tracking-widest">● Database Connected</div>
         <div v-else class="badge badge-error badge-outline mb-2 uppercase text-[10px] font-bold tracking-widest animate-pulse">○ Connecting...</div>
         <h1 class="text-5xl font-black italic tracking-tighter text-warning uppercase drop-shadow-lg">🏀 ECBA Slam Jam</h1>
+        <p class="text-xs opacity-50 mt-2">Total Rows Found: {{ rawRowCount }}</p>
     </header>
-
-    <div v-if="allTimeHigh.points > 0" class="flex justify-center mb-8">
-        <div class="stats shadow bg-base-100 border border-warning/20">
-            <div class="stat">
-                <div class="stat-title text-xs font-bold uppercase opacity-50">🌟 All-Time Record</div>
-                <div class="stat-value text-warning text-2xl uppercase tracking-tighter">{{ allTimeHigh.player }}</div>
-                <div class="stat-desc font-bold text-warning/70 italic">{{ allTimeHigh.points }} Total Points</div>
-            </div>
-        </div>
-    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div class="lg:col-span-4 card bg-base-100 shadow-2xl border border-white/5 h-fit">
@@ -71,44 +62,25 @@
         </div>
 
         <div class="lg:col-span-8 flex flex-col gap-4">
-            <div class="tabs tabs-boxed bg-base-100 flex-nowrap overflow-x-auto border border-white/5">
-                <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'monthly'}">MONTHLY</button>
-                <button @click="view = 'lifetime'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'lifetime'}">LIFETIME</button>
-                <button @click="view = 'recent'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'recent'}">ACTIVITY</button>
+            <div class="tabs tabs-boxed bg-base-100 border border-white/5">
+                <button @click="view = 'all'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'all'}">ALL-TIME SCORES</button>
+                <button @click="view = 'recent'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'recent'}">RECENT ACTIVITY</button>
             </div>
 
             <div class="card bg-base-100 shadow-xl border border-white/5 min-h-[400px]">
                 <div class="overflow-x-auto p-2">
                     
-                    <table v-if="view === 'monthly'" class="table table-zebra table-sm font-medium">
+                    <table v-if="view === 'all'" class="table table-zebra table-sm font-medium">
                         <thead class="text-warning/50 uppercase text-[10px]">
-                            <tr><th>Rank</th><th>Player</th><th class="text-right">Points</th></tr>
+                            <tr><th>Rank</th><th>Player</th><th class="text-right">Total Points</th></tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(r, idx) in monthly" :key="r.name">
+                            <tr v-for="(r, idx) in lifetime" :key="r.name">
                                 <td class="opacity-20 font-bold italic">{{ idx + 1 }}</td>
-                                <td>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-lg leading-none">{{ r.icon }}</span>
-                                        <span class="font-black text-sm">{{ r.name }}</span>
-                                        <span v-if="r.title" class="badge badge-warning badge-sm font-bold italic text-[9px] uppercase border-none">{{ r.title }}</span>
-                                    </div>
-                                </td>
-                                <td class="text-right font-black text-warning">{{ r.pts }}</td>
-                            </tr>
-                            <tr v-if="monthly.length === 0"><td colspan="3" class="text-center py-20 opacity-30 italic text-xs">No data for March 2026 found.</td></tr>
-                        </tbody>
-                    </table>
-
-                    <table v-if="view === 'lifetime'" class="table table-zebra table-sm font-medium">
-                        <thead class="text-warning/50 uppercase text-[10px]">
-                            <tr><th>Player</th><th class="text-right">Points</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="r in lifetime" :key="r.name">
                                 <td class="font-black text-sm uppercase">{{ r.name }}</td>
                                 <td class="text-right font-black text-warning">{{ r.pts }}</td>
                             </tr>
+                            <tr v-if="lifetime.length === 0"><td colspan="3" class="text-center py-20 opacity-30 italic text-xs">No data found in database.</td></tr>
                         </tbody>
                     </table>
 
@@ -123,11 +95,6 @@
             </div>
         </div>
     </div>
-
-    <div v-if="overlay.show" @click="overlay.show = false" class="fixed inset-0 bg-black/90 z-[300] flex items-center justify-center p-4 cursor-pointer backdrop-blur-md">
-        <img :src="overlay.gif" class="max-w-full max-h-full rounded-3xl border-4 border-warning shadow-[0_0_80px_rgba(255,204,0,0.6)]" />
-    </div>
-
 </div>
 
 <script type="module">
@@ -140,23 +107,12 @@
         setup() {
             const connected = vRef(false);
             const submitting = vRef(false);
-            const view = vRef('monthly');
+            const rawRowCount = vRef(0);
+            const view = vRef('all');
             const players = vRef([]);
-            const monthly = vRef([]);
             const lifetime = vRef([]);
             const logs = vRef([]);
-            const allTimeHigh = vRef({ player: 'N/A', points: 0 });
-            const overlay = vRef({ show: false, gif: '' });
             const form = vRef({ scorer: '', newPlayer: '', target: '', points: 1 });
-
-            const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
-            const TIERS = {
-                2: { icon: '🔥', title: 'ON FIRE!', color: '#fb923c', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
-                3: { icon: '💥', title: 'LEGENDARY!', color: '#facc15', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
-                4: { icon: '👑', title: 'EPIC!', color: '#4ade80', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
-                5: { icon: '⚡', title: 'UNSTOPPABLE!', color: '#60a5fa', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
-                6: { icon: '🌌', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
-            };
 
             const fbApp = initializeApp({
                 apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g",
@@ -176,82 +132,40 @@
                     if (!data) return;
                     connected.value = true;
                     
-                    // March 9, 2026 logic hardcoded for current DB state
-                    const curMonth = 2; // March is 2
-                    const curYear = 2026;
+                    const pSet = new Set(), lTot = {}, logArr = [];
+                    const rows = Object.values(data);
+                    rawRowCount.value = rows.length;
 
-                    const pSet = new Set(), mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
-                    let curP = null, curS = 0;
+                    // Sort chronological
+                    rows.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
 
-                    const rows = Object.entries(data).map(([k,d]) => [new Date(d.timestamp), d.player, d.points, d.timestamp, d.scorer || d.player]);
-                    rows.sort((a,b) => a[0]-b[0]);
+                    rows.forEach((d) => {
+                        const player = d.player;
+                        const scorer = d.scorer || d.player;
+                        const pts = Number(d.points || 0);
+                        const date = new Date(d.timestamp);
 
-                    rows.forEach(([date, player, pts, ts, scorer]) => {
                         pSet.add(player); pSet.add(scorer);
-                        const isM = (date.getMonth() === curMonth && date.getFullYear() === curYear);
-                        const mk = `${date.getFullYear()}-${date.getMonth()}`;
-                        if (!hist[mk]) hist[mk] = {};
-                        hist[mk][player] = (hist[mk][player] || 0) + pts;
-                        if (pts > 0) lTot[player] = (lTot[player] || 0) + pts;
                         
-                        if (isM) {
-                            mTot[player] = (mTot[player] || 0) + pts;
-                            dTot[player+date.toDateString()] = (dTot[player+date.toDateString()] || 0) + pts;
-                            if (curP === scorer) curS++; else {
-                                if (curP && curS >= CONFIG.GODLIKE) slay[scorer] = (slay[scorer] || 0) + 1;
-                                curP = scorer; curS = 1;
-                            }
-                            mStr[scorer] = Math.max(mStr[scorer] || 0, curS);
-                            const currentScore = mTot[player] || 0;
-                            if (pts < 0) {
-                                pCnt[scorer] = (pCnt[scorer] || 0) + 1; vCnt[player] = (vCnt[player] || 0) + Math.abs(pts);
-                                logArr.unshift({ time: date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), text: `<b>${scorer}</b> punished <b>${player}</b>! (${pts}) (Total ${currentScore})`, isNeg: true });
-                            } else {
-                                if (curS >= 2) {
-                                    const t = TIERS[Math.min(curS, 6)];
-                                    logArr.unshift({ time: date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), text: `<b>${scorer}</b> is ${t.title} (Streak of ${curS}, Total ${currentScore}) ${t.icon}`, color: t.color });
-                                } else logArr.unshift({ time: date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), text: `<b>${player}</b> scored 1. (Total ${currentScore})` });
-                            }
-                        }
+                        // Aggregating all data regardless of date
+                        lTot[player] = (lTot[player] || 0) + pts;
+                        
+                        const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        const logText = pts < 0 
+                            ? `<b>${scorer}</b> punished <b>${player}</b>! (${pts})`
+                            : `<b>${player}</b> scored ${pts}.`;
+                        
+                        logArr.unshift({ time: timeStr, text: logText, isNeg: pts < 0 });
                     });
 
                     players.value = [...pSet].sort();
-                    logs.value = logArr.slice(0, 15);
                     lifetime.value = Object.entries(lTot).map(([name, pts]) => ({ name, pts })).sort((a,b)=>b.pts-a.pts);
-                    
-                    const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
-                    const topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
-
-                    monthly.value = Object.entries(mTot).map(([name, pts]) => {
-                        let title = "";
-                        const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(name)).map(k=>dTot[k]), 0);
-                        if (mStr[name] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
-                        else if (slay[name] >= CONFIG.SLAYER) title = "Godslayer";
-                        else if (name === topP) title = "Punisher";
-                        else if (name === topV) title = "Punished";
-                        else if (pts >= CONFIG.CENTURION) title = "Centurion";
-                        else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
-                        return { name, pts, title, icon: (curP === name && pts > 0) ? TIERS[Math.min(curS, 6)].icon : '' };
-                    }).sort((a,b)=>b.pts-a.pts);
-
-                    let high = { player: 'N/A', points: 0 };
-                    Object.keys(hist).forEach(key => Object.entries(hist[key]).forEach(([p, ppts]) => { if (ppts > high.points) high = { player: p, points: ppts }; }));
-                    allTimeHigh.value = high;
-
-                    // Fresh Submission UI triggers
-                    const last = rows[rows.length-1];
-                    if ((Date.now() - last[3])/1000 < 10) {
-                        if (last[2] < 0) playAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
-                        else if (logs.value[0]?.text.includes("is")) {
-                            const match = logs.value[0].text.match(/Streak of (\d+)/);
-                            if (match) playAnim(TIERS[Math.min(match[1], 6)].gif);
-                        }
-                    }
+                    logs.value = logArr.slice(0, 30);
                 });
             });
 
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
-            const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
+            
             const submitScore = async () => {
                 const s = (form.value.scorer || form.value.newPlayer).trim();
                 let t = form.value.points < 0 ? form.value.target : s;
@@ -264,7 +178,7 @@
                 submitting.value = false;
             };
 
-            return { connected, view, players, monthly, lifetime, logs, allTimeHigh, form, changePoints, submitScore, overlay };
+            return { connected, rawRowCount, view, players, lifetime, logs, form, changePoints, submitScore };
         }
     }).mount('#app');
 </script>
