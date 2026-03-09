@@ -89,11 +89,11 @@
       let pointsValue = 1;
       const CONFIG = { THRESHOLDS: { JUGGERNAUT_STREAK: 10, CENTURION_POINTS: 100, OVERACHIEVER_DAILY: 25, GODSLAYER_KILLS: 3, GODLIKE_STREAK: 6 } };
       const STREAK_TIERS = {
-        2: { icon: '🔥', color: 'orange', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
-        3: { icon: '💥', color: 'yellow', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
-        4: { icon: '👑', color: 'green', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
-        5: { icon: '⚡', color: 'blue', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
-        6: { icon: '🌌', color: 'purple', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
+        2: { icon: '🔥', title: 'is ON FIRE!', color: 'orange', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
+        3: { icon: '💥', title: 'is LEGENDARY!', color: 'yellow', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
+        4: { icon: '👑', title: 'is EPIC!', color: 'green', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
+        5: { icon: '⚡', title: 'is UNSTOPPABLE!', color: 'blue', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
+        6: { icon: '🌌', title: 'is GODLIKE!', color: 'purple', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
       };
       const achievementDescs = { "Juggernaut": "10+ streak", "Godslayer": "Ended 3 Godlike streaks", "Punisher": "Most punishments sent", "The Punished": "Most penalties received", "Centurion": "100+ points this month", "Overachiever": "25+ pts in one day" };
       const negativeGif = "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif";
@@ -159,15 +159,20 @@
             }
             maxStreaks[scorer] = Math.max(maxStreaks[scorer] || 0, curS);
             
+            // LOG ENTRIES WITH RUNNING TOTALS
+            const currentTotal = mTotals[player] || 0;
+
             if (pts < 0) {
               pCounts[scorer] = (pCounts[scorer] || 0) + 1;
               victimCounts[player] = (victimCounts[player] || 0) + Math.abs(pts);
-              logEntries.push(createLogEntry(date, `${scorer} punished ${player}! (${pts})`, true));
+              logEntries.push(createLogEntry(date, `${scorer} punished ${player}! (${pts}) (Total ${currentTotal})`, true));
             } else {
               if (curS >= 2) {
                 const tier = STREAK_TIERS[Math.min(curS, 6)];
-                logEntries.push(createLogEntry(date, `${scorer}: Streak of ${curS} ${tier.icon}`, false, tier.color));
-              } else logEntries.push(createLogEntry(date, `${player} scored ${pts}.`, false));
+                logEntries.push(createLogEntry(date, `${scorer} scored 1 and ${tier.title} (Streak of ${curS}, Total ${currentTotal}) ${tier.icon}`, false, tier.color));
+              } else {
+                logEntries.push(createLogEntry(date, `${player} scored 1. (Total ${currentTotal})`, false));
+              }
             }
           }
         });
