@@ -88,7 +88,13 @@
 
       let pointsValue = 1;
       const CONFIG = { THRESHOLDS: { JUGGERNAUT_STREAK: 10, CENTURION_POINTS: 100, OVERACHIEVER_DAILY: 25, GODSLAYER_KILLS: 3, GODLIKE_STREAK: 6 } };
-      const STREAK_TIERS = { 2: { icon: '🔥' }, 3: { icon: '💥' }, 4: { icon: '👑' }, 5: { icon: '⚡' }, 6: { icon: '🌌' } };
+      const STREAK_TIERS = {
+        2: { icon: '🔥', color: 'orange' },
+        3: { icon: '💥', color: 'yellow' },
+        4: { icon: '👑', color: 'green' },
+        5: { icon: '⚡', color: 'blue' },
+        6: { icon: '🌌', color: 'purple' }
+      };
       const achievementDescs = { "Juggernaut": "10+ streak", "Godslayer": "Ended 3 Godlike streaks", "Punisher": "Most punishments sent", "The Punished": "Most penalties received", "Centurion": "100+ points this month", "Overachiever": "25+ pts in one day" };
 
       window.changePoints = (delta) => {
@@ -131,12 +137,16 @@
 
       function processLogic(rows) {
         const now = new Date(), m = now.getMonth(), y = now.getFullYear();
-        const players = new Set(), mTotals = {}, lTotals = {}, dTotals = {}, pCounts = {}, victimCounts = {}, maxStreaks = {}, slayers = {}, logEntries = [];
+        const players = new Set(), mTotals = {}, lTotals = {}, dTotals = {}, pCounts = {}, victimCounts = {}, maxStreaks = {}, slayers = {}, logEntries = [], historyMap = {};
         let curP = null, curS = 0;
 
         rows.forEach(([date, player, pts, ts, scorer]) => {
           players.add(player); players.add(scorer);
           const isThisMonth = (date.getMonth() === m && date.getFullYear() === y);
+          const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+          
+          if (!historyMap[monthKey]) historyMap[monthKey] = {};
+          historyMap[monthKey][player] = (historyMap[monthKey][player] || 0) + pts;
           if (pts > 0) lTotals[player] = (lTotals[player] || 0) + pts;
           
           if (isThisMonth) {
@@ -156,7 +166,8 @@
               logEntries.push(createLogEntry(date, `${scorer} punished ${player}! (${pts})`, true));
             } else {
               if (curS >= 2) {
-                logEntries.push(createLogEntry(date, `${scorer}: Streak of ${curS} ${STREAK_TIERS[Math.min(curS, 6)].icon}`, false, '#ffcc00'));
+                const tier = STREAK_TIERS[Math.min(curS, 6)];
+                logEntries.push(createLogEntry(date, `${scorer}: Streak of ${curS} ${tier.icon}`, false, tier.color));
               } else {
                 logEntries.push(createLogEntry(date, `${player} scored ${pts}.`, false));
               }
@@ -167,8 +178,13 @@
         const topP = Object.entries(pCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
         const topV = Object.entries(victimCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
 
+        let allTimeHigh = { player: 'N/A', points: 0 };
+        Object.keys(historyMap).forEach(mk => Object.entries(historyMap[mk]).forEach(([p, pts]) => {
+          if (pts > allTimeHigh.points) allTimeHigh = { player: p, points: pts };
+        }));
+
         return {
-          players: [...players].sort(),
+          players: [...players].sort(), allTimeHigh,
           monthly: Object.entries(mTotals).map(([p, pts]) => {
             let title = "";
             const dailyMax = Math.max(...Object.keys(dTotals).filter(k=>k.startsWith(p)).map(k=>dTotals[k]), 0);
@@ -181,7 +197,7 @@
             
             return { name: p, pts, title, icon: (curP === p && pts > 0) ? (STREAK_TIERS[Math.min(curS, 6)]?.icon || '') : '' };
           }).sort((a,b)=>b.pts-a.pts),
-          lifetime: Object.entries(lTotals).sort((a,b)=>b[1]-a[1]),
+          lifetime: Object.entries(lTotals).map(([p, pts]) => ({player:p, points:pts})).sort((a,b)=>b.points-a.points),
           log: logEntries.reverse().slice(0, 15)
         };
       }
@@ -191,8 +207,12 @@
         const opts = '<option value="">--Select--</option>' + data.players.map(p => `<option value="${p}">${p}</option>`).join('');
         pS.innerHTML = opts; tS.innerHTML = opts; pS.value = curP; tS.value = curT;
         
+        if (data.allTimeHigh.points > 0) {
+          document.getElementById('allTimeHigh').innerHTML = `<div class="high-score-box">🌟 All-Time Record: ${data.allTimeHigh.player} (${data.allTimeHigh.points} pts)</div>`;
+        }
+
         document.getElementById('leaderboard').innerHTML = '<h2>📅 Monthly</h2><table>' + data.monthly.map(r => `<tr><td>${r.icon} ${r.name} <span class="achievement" title="${achievementDescs[r.title]||''}">${r.title}</span></td><td>${r.pts}</td></tr>`).join('') + '</table>';
-        document.getElementById('lifetime').innerHTML = '<h2>🌟 Lifetime</h2><table>' + data.lifetime.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('') + '</table>';
+        document.getElementById('lifetime').innerHTML = '<h2>🌟 Lifetime</h2><table>' + data.lifetime.map(r => `<tr><td>${r.player}</td><td>${r.points}</td></tr>`).join('') + '</table>';
         document.getElementById('log').innerHTML = '<h2>📰 Recent Scores</h2><ul style="list-style:none;padding:0">' + data.log.map(l => `<li>${l.text}</li>`).join('') + '</ul>';
         setupTooltips();
       }
