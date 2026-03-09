@@ -18,10 +18,12 @@
       .section { margin-top: 2em; }
       .toast { visibility: hidden; background-color: #4CAF50; color: white; text-align: center; border-radius: 10px; padding: 1em; position: fixed; z-index: 1; left: 50%; top: 30px; transform: translateX(-50%); font-weight: bold; }
       .achievement { color: #ffdd55; font-style: italic; margin-left: 0.3em; cursor: help; font-size: 0.85em; border-bottom: 1px dotted #ffdd55; }
+      .touch-tooltip { position: fixed; background: #333; color: #fff; padding: 0.3em 0.5em; border-radius: 5px; z-index: 9999; box-shadow: 0 0 5px #ffcc00; max-width: 200px; }
       .high-score-box { background: #1e1e1e; border: 2px solid #ffcc00; padding: 10px; border-radius: 12px; display: inline-block; margin-bottom: 1.5em; font-weight: bold; color: #ffcc00; box-shadow: 0 0 10px rgba(255,204,0,0.2); }
       #streakAnimation { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.70); display: none; justify-content: center; align-items: center; z-index: 99999; animation: fadeIn 0.3s ease-out; cursor: pointer; }
       #streakAnimation img { max-width: 90vw; max-height: 90vh; border-radius: 20px; box-shadow: 0 0 40px #ffcc00; }
       .version-footer { margin-top: 3em; padding-bottom: 2em; font-size: 0.8em; color: #444; cursor: pointer; user-select: none; transition: color 0.2s; }
+      .version-footer:hover { color: #ffcc00; }
       #punishSection { display: none; background: rgba(255, 0, 0, 0.1); border: 1px dashed red; padding: 10px; border-radius: 10px; margin-top: 10px; }
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
@@ -40,15 +42,15 @@
     <div style="margin-top: 1.5em;">
       <h2 id="pointsLabel" style="color:#ffcc00;text-shadow:0 0 10px #ffcc00">Points</h2>
       <div style="display:flex;justify-content:center;align-items:center;gap:1em;">
-        <button onclick="changePoints(-1)">−</button>
+        <button style="font-size:2em;padding:0.4em 0.8em;" onclick="changePoints(-1)">−</button>
         <div id="pointsDisplay" style="font-size:2.5em;min-width:60px;">1</div>
-        <button onclick="changePoints(1)">+</button>
+        <button style="font-size:2em;padding:0.4em 0.8em;" onclick="changePoints(1)">+</button>
       </div>
       <div id="punishSection">
         <label style="color:red; font-weight:bold;">Penalty To:</label><br>
         <select id="targetPlayer"></select>
       </div>
-      <button id="submitBtn" style="margin-top:1em;" onclick="submitScore()">Submit Score</button>
+      <button id="submitBtn" style="margin-top:1em;font-size:1.4em;padding:0.4em 1.2em;" onclick="submitScore()">Submit Score</button>
     </div>
 
     <div id="toast" class="toast">✅ Score submitted!</div>
@@ -56,11 +58,15 @@
     <div id="lifetime" class="section"></div>
     <div id="log" class="section"></div>
 
-    <div id="streakAnimation" onclick="this.style.display='none';">
+    <div id="streakAnimation" onclick="this.style.display='none'; document.getElementById('streakGif').src='';">
       <img id="streakGif" src="" />
     </div>
 
-    <div class="version-footer">Build: {{VERSION}}</div>
+    <div id="footer-image">
+      <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/30a13bed097ece6848662daceff7f9572b6fd667/ECBA.png" alt="ECBA Logo" width="300" height="300"/>
+    </div>
+
+    <div class="version-footer" onclick="window.location.reload(true);">Build: {{VERSION}}</div>
 
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -98,11 +104,17 @@
         const scorer = (document.getElementById('player').value || document.getElementById('newPlayer').value).trim();
         let target = pointsValue < 0 ? document.getElementById('targetPlayer').value : scorer;
         if (!scorer || (pointsValue < 0 && !target)) return alert('Missing names');
+        
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        showToast();
+
         try {
           await push(scoresRef, { player: target, points: pointsValue, scorer: scorer, timestamp: serverTimestamp() });
           document.getElementById('newPlayer').value = '';
           window.changePoints(1 - pointsValue);
         } catch (e) { alert(e.message); }
+        finally { btn.disabled = false; }
       };
 
       onValue(scoresRef, (snapshot) => {
@@ -119,25 +131,35 @@
 
       function processLogic(rows) {
         const now = new Date(), m = now.getMonth(), y = now.getFullYear();
-        const players = new Set(), mTotals = {}, lTotals = {}, dTotals = {}, pCounts = {}, victimCounts = {}, maxStreaks = {}, slayers = {};
+        const players = new Set(), mTotals = {}, lTotals = {}, dTotals = {}, pCounts = {}, victimCounts = {}, maxStreaks = {}, slayers = {}, logEntries = [];
         let curP = null, curS = 0;
 
         rows.forEach(([date, player, pts, ts, scorer]) => {
           players.add(player); players.add(scorer);
+          const isThisMonth = (date.getMonth() === m && date.getFullYear() === y);
           if (pts > 0) lTotals[player] = (lTotals[player] || 0) + pts;
-          if (date.getMonth() === m && date.getFullYear() === y) {
+          
+          if (isThisMonth) {
             mTotals[player] = (mTotals[player] || 0) + pts;
-            const day = date.toDateString();
-            dTotals[player+day] = (dTotals[player+day] || 0) + pts;
+            const dayKey = player + date.toDateString();
+            dTotals[dayKey] = (dTotals[dayKey] || 0) + pts;
             
             if (curP === scorer) curS++; else {
               if (curP && curS >= CONFIG.THRESHOLDS.GODLIKE_STREAK) slayers[scorer] = (slayers[scorer] || 0) + 1;
               curP = scorer; curS = 1;
             }
             maxStreaks[scorer] = Math.max(maxStreaks[scorer] || 0, curS);
+            
             if (pts < 0) {
               pCounts[scorer] = (pCounts[scorer] || 0) + 1;
               victimCounts[player] = (victimCounts[player] || 0) + Math.abs(pts);
+              logEntries.push(createLogEntry(date, `${scorer} punished ${player}! (${pts})`, true));
+            } else {
+              if (curS >= 2) {
+                logEntries.push(createLogEntry(date, `${scorer}: Streak of ${curS} ${STREAK_TIERS[Math.min(curS, 6)].icon}`, false, '#ffcc00'));
+              } else {
+                logEntries.push(createLogEntry(date, `${player} scored ${pts}.`, false));
+              }
             }
           }
         });
@@ -149,23 +171,51 @@
           players: [...players].sort(),
           monthly: Object.entries(mTotals).map(([p, pts]) => {
             let title = "";
+            const dailyMax = Math.max(...Object.keys(dTotals).filter(k=>k.startsWith(p)).map(k=>dTotals[k]), 0);
             if (maxStreaks[p] >= CONFIG.THRESHOLDS.JUGGERNAUT_STREAK) title = "Juggernaut";
             else if (slayers[p] >= CONFIG.THRESHOLDS.GODSLAYER_KILLS) title = "Godslayer";
             else if (p === topP && pCounts[p] > 0) title = "Punisher";
             else if (p === topV && victimCounts[p] > 0) title = "The Punished";
             else if (pts >= CONFIG.THRESHOLDS.CENTURION_POINTS) title = "Centurion";
+            else if (dailyMax >= CONFIG.THRESHOLDS.OVERACHIEVER_DAILY) title = "Overachiever";
+            
             return { name: p, pts, title, icon: (curP === p && pts > 0) ? (STREAK_TIERS[Math.min(curS, 6)]?.icon || '') : '' };
           }).sort((a,b)=>b.pts-a.pts),
           lifetime: Object.entries(lTotals).sort((a,b)=>b[1]-a[1]),
-          log: rows.reverse().slice(0,10)
+          log: logEntries.reverse().slice(0, 15)
         };
       }
 
       function renderUI(data) {
+        const pS = document.getElementById('player'), tS = document.getElementById('targetPlayer'), curP = pS.value, curT = tS.value;
         const opts = '<option value="">--Select--</option>' + data.players.map(p => `<option value="${p}">${p}</option>`).join('');
-        document.getElementById('player').innerHTML = opts; document.getElementById('targetPlayer').innerHTML = opts;
+        pS.innerHTML = opts; tS.innerHTML = opts; pS.value = curP; tS.value = curT;
+        
         document.getElementById('leaderboard').innerHTML = '<h2>📅 Monthly</h2><table>' + data.monthly.map(r => `<tr><td>${r.icon} ${r.name} <span class="achievement" title="${achievementDescs[r.title]||''}">${r.title}</span></td><td>${r.pts}</td></tr>`).join('') + '</table>';
         document.getElementById('lifetime').innerHTML = '<h2>🌟 Lifetime</h2><table>' + data.lifetime.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('') + '</table>';
+        document.getElementById('log').innerHTML = '<h2>📰 Recent Scores</h2><ul style="list-style:none;padding:0">' + data.log.map(l => `<li>${l.text}</li>`).join('') + '</ul>';
+        setupTooltips();
+      }
+
+      function createLogEntry(date, msg, isNeg, color) {
+        const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return { text: `<span style="${isNeg ? "color:red; font-weight:bold;" : (color ? `color:${color}; font-weight:bold;` : "")}">[${time}] ${msg}</span>` };
+      }
+
+      function setupTooltips() {
+        document.querySelectorAll('.achievement').forEach(el => {
+          el.onclick = (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.touch-tooltip').forEach(t => t.remove());
+            const tt = document.createElement('div');
+            tt.className = 'touch-tooltip';
+            tt.textContent = el.getAttribute('title');
+            document.body.appendChild(tt);
+            const r = el.getBoundingClientRect();
+            tt.style.left = r.left + 'px'; tt.style.top = r.bottom + 5 + 'px';
+            document.addEventListener('click', () => tt.remove(), { once: true });
+          };
+        });
       }
 
       function playAnim(u) { const d = document.getElementById('streakAnimation'); document.getElementById('streakGif').src=u; d.style.display="flex"; setTimeout(()=>d.style.display="none", 5000); }
