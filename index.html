@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8" />
+  <title>ECBA Slam Jam</title>
+  <style>
+    /* ... [Keep all your existing CSS exactly as it is] ... */
+    body { font-family: 'Segoe UI', sans-serif; margin: 2em; background-color: #121212; color: #e0e0e0; text-align: center; }
+    h1, h2 { color: #000; text-shadow: 0 0 5px #ffcc00, 0 0 10px #ffcc00, 0 0 20px #ffcc00; }
+    button { background-color: #ffcc00; color: #000; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; padding: 0.5em 1em; margin: 0.5em; font-size: 1em; transition: 0.2s; text-shadow: 0 0 3px #ffcc00; }
+    button:hover { background-color: #ffaa00; text-shadow: 0 0 5px #ffaa00, 0 0 10px #ffaa00; }
+    button:disabled { background-color: #555; color: #888; cursor: not-allowed; text-shadow: none; }
+    select, input[type="text"], input[type="number"] { padding: 0.5em; margin: 0.5em; border-radius: 8px; border: none; font-size: 1em; background-color: #1e1e1e; color: #e0e0e0; box-shadow: 0 0 5px #ffcc00; }
+    table { margin: 1em auto; border-collapse: collapse; width: auto; max-width: 600px; box-shadow: 0 2px 15px rgba(255,204,0,0.3); }
+    th, td { padding: 0.6em 1em; border-bottom: 1px solid #333; text-align: left; }
+    th { background-color: #1e1e1e; color: #000; text-shadow: 0 0 5px #ffcc00; }
+    tr:nth-child(even) td { background-color: #1a1a1a; }
+    .section { margin-top: 2em; }
+    .toast { visibility: hidden; background-color: #4CAF50; color: white; text-align: center; border-radius: 10px; padding: 1em; position: fixed; z-index: 1; left: 50%; top: 30px; transform: translateX(-50%); font-weight: bold; }
+    .achievement { color: #ffdd55; font-style: italic; margin-left: 0.3em; cursor: help; }
+    .touch-tooltip { position: fixed; background: #333; color: #fff; padding: 0.3em 0.5em; border-radius: 5px; z-index: 9999; box-shadow: 0 0 5px #ffcc00; max-width: 200px; }
+    .high-score-box { background: #1e1e1e; border: 2px solid #ffcc00; padding: 10px; border-radius: 12px; display: inline-block; margin-bottom: 1.5em; font-weight: bold; color: #ffcc00; box-shadow: 0 0 10px rgba(255,204,0,0.2); }
+    #streakAnimation { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.70); display: none; justify-content: center; align-items: center; z-index: 99999; animation: fadeIn 0.3s ease-out; cursor: pointer; }
+    #streakAnimation img { max-width: 90vw; max-height: 90vh; border-radius: 20px; box-shadow: 0 0 40px #ffcc00; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @media (max-width: 480px) { #streakAnimation img { max-width: 95vw; } }
+  </style>
+</head>
+
+<body>
+  <h1>🏀 ECBA Slam Jam</h1>
+  <div id="allTimeHigh"></div>
+
+  <div>
+    <label for="player">Player:</label>
+    <select id="player"></select>
+    <input type="text" id="newPlayer" placeholder="Or add new player">
+  </div>
+
+  <div style="margin-top: 1.5em;">
+    <h2 style="color:#ffcc00;text-shadow:0 0 10px #ffcc00">Points</h2>
+    <div style="display:flex;justify-content:center;align-items:center;gap:1em;">
+      <button style="font-size:2em;padding:0.4em 0.8em;" onclick="changePoints(-1)">−</button>
+      <div id="pointsDisplay" style="font-size:2.5em;min-width:60px;">1</div>
+      <button style="font-size:2em;padding:0.4em 0.8em;" onclick="changePoints(1)">+</button>
+    </div>
+    <button id="submitBtn" style="margin-top:1em;font-size:1.4em;padding:0.4em 1.2em;" onclick="submitScore()">Submit Score</button>
+  </div>
+
+  <div id="toast" class="toast">✅ Score submitted!</div>
+  <div id="leaderboard" class="section"></div>
+  <div id="lifetime" class="section"></div>
+  <div id="log" class="section"></div>
+
+  <div id="streakAnimation" aria-hidden="true" onclick="this.style.display='none'; document.getElementById('streakGif').src='';">
+    <img id="streakGif" src="" alt="streak animation" />
+  </div>
+
+  <div id="footer-image">
+    <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/30a13bed097ece6848662daceff7f9572b6fd667/ECBA.png" alt="ECBA Logo" width="300" height="300"/>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } 
+      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // 1. YOUR FIREBASE CONFIG
+    const firebaseConfig = {
+      apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g",
+      authDomain: "ecba-slamjam.firebaseapp.com",
+      databaseURL: "https://ecba-slamjam-default-rtdb.firebaseio.com",
+      projectId: "ecba-slamjam",
+      storageBucket: "ecba-slamjam.firebasestorage.app",
+      messagingSenderId: "194161211475",
+      appId: "1:194161211475:web:1fbd26416759f10587aea6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const scoresCol = collection(db, "scores");
+
+    // Constants from your Code.gs
+    const CONFIG = {
+      THRESHOLDS: { JUGGERNAUT_STREAK: 10, CENTURION_POINTS: 100, OVERACHIEVER_DAILY: 25, GODSLAYER_KILLS: 3, STREAKER_MIN_COUNT: 10, GODLIKE_STREAK: 6 }
+    };
+    const STREAK_TIERS = {
+      2: { icon: '🔥', title: 'ON FIRE!', color: 'orange' },
+      3: { icon: '💥', title: 'LEGENDARY!', color: 'yellow' },
+      4: { icon: '👑', title: 'EPIC!', color: 'green' },
+      5: { icon: '⚡', title: 'UNSTOPPABLE!', color: 'blue' },
+      6: { icon: '🌌', title: 'GODLIKE!', color: 'purple' }
+    };
+    const streakGifs = {
+      2: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif",
+      3: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif",
+      4: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif",
+      5: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif",
+      6: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif"
+    };
+    const negativeGif = "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif";
+
+    let pointsValue = 1;
+
+    // --- UI FUNCTIONS ---
+    window.changePoints = (delta) => {
+      let newValue = pointsValue + delta;
+      if (pointsValue > 0 && newValue === 0) newValue = -1;
+      if (pointsValue < 0 && newValue === 0) newValue = 1;
+      pointsValue = Math.max(-100, Math.min(100, newValue));
+      document.getElementById('pointsDisplay').textContent = pointsValue;
+    };
+
+    window.submitScore = async () => {
+      const playerInput = document.getElementById('player');
+      const newPlayerInput = document.getElementById('newPlayer');
+      const player = (playerInput.value || newPlayerInput.value).trim();
+
+      if (!player || pointsValue === 0) return alert('Enter player and score.');
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      showToast();
+
+      try {
+        await addDoc(scoresCol, {
+          player: player,
+          points: Number(pointsValue),
+          timestamp: serverTimestamp()
+        });
+        newPlayerInput.value = '';
+        pointsValue = 1;
+        document.getElementById('pointsDisplay').textContent = 1;
+      } catch (e) {
+        alert("Error: " + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit Score';
+      }
+    };
+
+    // --- REAL-TIME DATA PROCESSING ---
+    const q = query(scoresCol, orderBy("timestamp", "asc"));
+    onSnapshot(q, (snapshot) => {
+      const rawData = snapshot.docs.map(doc => {
+        const d = doc.data();
+        return [d.timestamp?.toDate() || new Date(), d.player, d.points];
+      });
+      if (rawData.length > 0) {
+        const processed = processLogic(rawData);
+        showData(processed);
+        // Trigger animations for the LATEST entry
+        const lastEntry = rawData[rawData.length - 1];
+        if (lastEntry[2] < 0) {
+           playStreakAnimation(negativeGif);
+        } else if (processed.log.length > 0) {
+           checkForStreakAnimation(processed.log[0].text);
+        }
+      }
+    });
+
+    // This is essentially your Code.gs getData() logic ported to JS
+    function processLogic(data) {
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+
+      const playersSet = new Set();
+      const monthlyTotals = {};
+      const lifetimeTotals = {};
+      const dailyTotals = {};
+      const negativeTotals = {};
+      const monthlyStreakCounts = {};
+      const monthlyStreaksBrokenBy = {};
+      const logEntries = [];
+      const historyMap = {};
+
+      let currentStreakPlayer = null, currentStreakCount = 0, currentGrimReaper = null;
+      const monthlyActivePlayers = new Set(), lastScoreWasNegative = {};
+
+      for (let i = 0; i < data.length; i++) {
+        const [timestamp, player, points] = data[i];
+        playersSet.add(player);
+        const rowMonth = timestamp.getMonth(), rowYear = timestamp.getFullYear();
+        const monthMatches = (rowMonth === thisMonth && rowYear === thisYear);
+        const monthKey = `${rowYear}-${rowMonth}`;
+
+        if (!historyMap[monthKey]) historyMap[monthKey] = {};
+        historyMap[monthKey][player] = (historyMap[monthKey][player] || 0) + points;
+        if (points > 0) lifetimeTotals[player] = (lifetimeTotals[player] || 0) + points;
+
+        if (monthMatches) {
+          monthlyTotals[player] = (monthlyTotals[player] || 0) + points;
+          monthlyActivePlayers.add(player);
+          if (points < 0) negativeTotals[player] = (negativeTotals[player] || 0) + Math.abs(points);
+          
+          const dateStr = timestamp.toISOString().split('T')[0];
+          dailyTotals[`${player}|${dateStr}`] = (dailyTotals[`${player}|${dateStr}`] || 0) + points;
+
+          if (points > 0) {
+            if (currentStreakPlayer === player) {
+              currentStreakCount++;
+              if (currentStreakCount === 2) monthlyStreakCounts[player] = (monthlyStreakCounts[player] || 0) + 1;
+            } else {
+              if (currentStreakPlayer && currentStreakCount >= 2) {
+                logEntries.push(createLogEntry(timestamp, `${player} ended ${currentStreakPlayer}'s streak of ${currentStreakCount}!`, true));
+                if (currentStreakCount >= CONFIG.THRESHOLDS.GODLIKE_STREAK) monthlyStreaksBrokenBy[player] = (monthlyStreaksBrokenBy[player] || 0) + 1;
+              }
+              currentStreakPlayer = player; currentStreakCount = 1;
+            }
+            lastScoreWasNegative[player] = false;
+            if (currentStreakCount >= 2) {
+              const tier = STREAK_TIERS[Math.min(currentStreakCount, 6)];
+              logEntries.push(createLogEntry(timestamp, `${player}: ${tier.title} (${currentStreakCount} streak) ${tier.icon}`, false, tier.color));
+            } else {
+              logEntries.push(createLogEntry(timestamp, `${player} scored ${points}.`, false));
+            }
+          } else {
+            lastScoreWasNegative[player] = true;
+            logEntries.push(createLogEntry(timestamp, `${player} punished! ${points}`, true));
+          }
+          
+          const survivors = [...monthlyActivePlayers].filter(p => !lastScoreWasNegative[p]);
+          currentGrimReaper = (survivors.length === 1 && monthlyActivePlayers.size > 1) ? survivors[0] : null;
+        }
+      }
+
+      // Final processing for winners/all-time
+      let allTimeHigh = { player: 'N/A', points: 0 };
+      Object.keys(historyMap).forEach(m => Object.entries(historyMap[m]).forEach(([p, pts]) => {
+        if (pts > allTimeHigh.points) allTimeHigh = { player: p, points: pts };
+      }));
+
+      const monthlyScores = Object.keys(monthlyTotals).map(p => {
+        let title = '';
+        if (currentGrimReaper === p) title = 'Grim Reaper';
+        // Add other title logic here as per your Code.gs
+        return { player: p, points: monthlyTotals[p], icon: (currentStreakPlayer === p && !lastScoreWasNegative[p]) ? STREAK_TIERS[Math.min(currentStreakCount, 6)].icon : (lastScoreWasNegative[p] ? '💀' : ''), title };
+      }).sort((a,b) => b.points - a.points);
+
+      return { 
+        players: [...playersSet].sort(), 
+        monthlyScores, 
+        lifetimeScores: Object.entries(lifetimeTotals).map(([p, pts]) => ({player:p, points:pts})).sort((a,b)=>b.points-a.points),
+        log: logEntries.reverse().slice(0, 20),
+        allTimeHigh 
+      };
+    }
+
+    // Helper functions for UI
+    function showData(data) {
+      const playerSelect = document.getElementById('player');
+      const current = playerSelect.value;
+      playerSelect.innerHTML = '<option value="">--Select Player--</option>';
+      data.players.forEach(p => { const opt = document.createElement('option'); opt.value = opt.textContent = p; playerSelect.appendChild(opt); });
+      playerSelect.value = current;
+
+      if (data.allTimeHigh.points > 0) {
+        document.getElementById('allTimeHigh').innerHTML = `<div class="high-score-box">🌟 All-Time Record: ${data.allTimeHigh.player} (${data.allTimeHigh.points} pts)</div>`;
+      }
+
+      let html = '<h2>📅 Monthly Scores</h2><table><tr><th>Player</th><th>Points</th></tr>';
+      data.monthlyScores.forEach(r => {
+        html += `<tr><td>${r.icon} ${r.player} <span class="achievement">${r.title}</span></td><td>${r.points}</td></tr>`;
+      });
+      document.getElementById('leaderboard').innerHTML = html + '</table>';
+
+      let life = '<h2>🌟 Lifetime Scores</h2><table><tr><th>Player</th><th>Points</th></tr>';
+      data.lifetimeScores.forEach(r => life += `<tr><td>${r.player}</td><td>${r.points}</td></tr>`);
+      document.getElementById('lifetime').innerHTML = life + '</table>';
+
+      let logHtml = '<h2>📰 Recent Scores</h2><ul style="list-style:none;padding:0">';
+      data.log.forEach(l => logHtml += `<li>${l.text}</li>`);
+      document.getElementById('log').innerHTML = logHtml + '</ul>';
+    }
+
+    function createLogEntry(date, msg, isNeg, color) {
+      const time = date.toLocaleTimeString();
+      let style = isNeg ? "color:red;font-weight:bold;" : (color ? `color:${color};font-weight:bold;` : "");
+      return { text: `<span style="${style}">[${time}] ${msg}</span>` };
+    }
+
+    function showToast() { const t = document.getElementById('toast'); t.style.visibility = 'visible'; setTimeout(()=>t.style.visibility='hidden', 2000); }
+    
+    function playStreakAnimation(url) {
+      const div = document.getElementById('streakAnimation');
+      const img = document.getElementById('streakGif');
+      img.src = url; div.style.display = "flex";
+      setTimeout(() => { div.style.display = "none"; img.src = ""; }, 5000);
+    }
+
+    function checkForStreakAnimation(logText) {
+      const match = logText.match(/\((\d+) streak\)/);
+      if (match) playStreakAnimation(streakGifs[Math.min(Number(match[1]), 6)]);
+    }
+  </script>
+</body>
+</html>
