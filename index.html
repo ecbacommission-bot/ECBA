@@ -145,6 +145,7 @@
       .version-footer:hover {
         color: #ffcc00;
       }
+      /* PUNISH UI */
       #punishSection {
         display: none;
         background: rgba(255, 0, 0, 0.1);
@@ -303,7 +304,6 @@
             timestamp: serverTimestamp()
           });
           nInput.value = '';
-          pInput.value = '';
           pointsValue = 1;
           document.getElementById('pointsDisplay').textContent = 1;
           document.getElementById('punishSection').style.display = 'none';
@@ -321,41 +321,37 @@
         const data = snapshot.val();
         if (!data) return;
 
-        const rawRows = Object.entries(data).map(([key, d]) => {
-          return [new Date(d.timestamp), d.player, d.points, d.timestamp, d.scorer || d.player];
-        });
+        // SAFE CONVERSION
+        const rawRows = Object.values(data).map(d => [
+          new Date(d.timestamp), 
+          d.player, 
+          d.points, 
+          d.timestamp,
+          d.scorer || d.player
+        ]);
         rawRows.sort((a, b) => a[0] - b[0]);
 
         const processed = processLogic(rawRows);
         renderUI(processed);
         
         const lastScore = rawRows[rawRows.length - 1];
-        const secondsSinceScore = (Date.now() - lastScore[3]) / 1000;
-
-        if (secondsSinceScore < 10) {
-          if (lastScore[2] < 0) {
-            playStreakAnimation(negativeGif);
-          } else if (processed.log.length > 0) {
-            checkForStreakAnimation(processed.log[0].text);
-          }
+        if ((Date.now() - lastScore[3]) / 1000 < 10) {
+          if (lastScore[2] < 0) playStreakAnimation(negativeGif);
+          else if (processed.log.length > 0) checkForStreakAnimation(processed.log[0].text);
         }
       });
 
       function processLogic(rows) {
-        const now = new Date();
-        const thisMonth = now.getMonth(), thisYear = now.getFullYear();
-        
+        const now = new Date(), m = now.getMonth(), y = now.getFullYear();
         const playersSet = new Set(), monthlyTotals = {}, lifetimeTotals = {}, dailyTotals = {}, negativeTotals = {};
-        const monthlyStreaksBrokenBy = {}, logEntries = [], historyMap = {};
-        const punishCounts = {}; 
+        const monthlyStreaksBrokenBy = {}, logEntries = [], historyMap = {}, punishCounts = {};
         let currentStreakPlayer = null, currentStreakCount = 0, currentGrimReaper = null;
         const monthlyActivePlayers = new Set(), lastScoreWasNegative = {};
 
         rows.forEach(([timestamp, player, points, tsRaw, scorer]) => {
-          playersSet.add(player);
-          playersSet.add(scorer);
+          playersSet.add(player); playersSet.add(scorer);
           const rMonth = timestamp.getMonth(), rYear = timestamp.getFullYear();
-          const isThisMonth = (rMonth === thisMonth && rYear === thisYear);
+          const isThisMonth = (rMonth === m && rYear === y);
           const monthKey = `${rYear}-${rMonth}`;
 
           if (!historyMap[monthKey]) historyMap[monthKey] = {};
@@ -365,151 +361,89 @@
           if (isThisMonth) {
             monthlyTotals[player] = (monthlyTotals[player] || 0) + points;
             monthlyActivePlayers.add(player);
-            
             if (points < 0) {
               negativeTotals[player] = (negativeTotals[player] || 0) + Math.abs(points);
               punishCounts[scorer] = (punishCounts[scorer] || 0) + 1;
             }
-            
-            const dateStr = timestamp.toISOString().split('T')[0];
-            dailyTotals[`${player}|${dateStr}`] = (dailyTotals[`${player}|${dateStr}`] || 0) + points;
+            dailyTotals[`${player}|${timestamp.toISOString().split('T')[0]}`] = (dailyTotals[`${player}|${timestamp.toISOString().split('T')[0]}`] || 0) + points;
 
             if (currentStreakPlayer === scorer) {
               currentStreakCount++;
             } else {
-              if (currentStreakPlayer && currentStreakCount >= CONFIG.THRESHOLDS.GODLIKE_STREAK) {
-                monthlyStreaksBrokenBy[scorer] = (monthlyStreaksBrokenBy[scorer] || 0) + 1;
-              }
-              currentStreakPlayer = scorer; 
-              currentStreakCount = 1;
+              if (currentStreakPlayer && currentStreakCount >= CONFIG.THRESHOLDS.GODLIKE_STREAK) monthlyStreaksBrokenBy[scorer] = (monthlyStreaksBrokenBy[scorer] || 0) + 1;
+              currentStreakPlayer = scorer; currentStreakCount = 1;
             }
-
             lastScoreWasNegative[player] = (points < 0);
 
-            if (points < 0) {
-              logEntries.push(createLogEntry(timestamp, `${scorer} punished ${player}! (${points})`, true));
-            } else if (currentStreakCount >= 2) {
+            if (points < 0) logEntries.push(createLogEntry(timestamp, `${scorer} punished ${player}! (${points})`, true));
+            else if (currentStreakCount >= 2) {
               const tier = STREAK_TIERS[Math.min(currentStreakCount, 6)];
               logEntries.push(createLogEntry(timestamp, `${scorer}: ${tier.title} (${currentStreakCount} streak) ${tier.icon}`, false, tier.color));
-            } else {
-              logEntries.push(createLogEntry(timestamp, `${player} scored ${points}.`, false));
-            }
+            } else logEntries.push(createLogEntry(timestamp, `${player} scored ${points}.`, false));
             
             const survivors = [...monthlyActivePlayers].filter(p => !lastScoreWasNegative[p]);
             currentGrimReaper = (survivors.length === 1 && monthlyActivePlayers.size > 1) ? survivors[0] : null;
           }
         });
 
-        let topPunisher = null;
-        let maxP = 0;
-        Object.entries(punishCounts).forEach(([p, count]) => {
-          if (count > maxP) { maxP = count; topPunisher = p; }
-        });
+        let topPunisher = null, maxP = 0;
+        Object.entries(punishCounts).forEach(([p, c]) => { if (c > maxP) { maxP = c; topPunisher = p; } });
 
         let allTimeHigh = { player: 'N/A', points: 0 };
-        Object.keys(historyMap).forEach(m => Object.entries(historyMap[m]).forEach(([p, pts]) => {
+        const lastMonthKey = `${y}-${m-1}`;
+        let lastMonthWinner = null, lastMonthTop = -Infinity;
+        Object.keys(historyMap).forEach(mk => Object.entries(historyMap[mk]).forEach(([p, pts]) => {
           if (pts > allTimeHigh.points) allTimeHigh = { player: p, points: pts };
+          if (mk === lastMonthKey && pts > lastMonthTop) { lastMonthTop = pts; lastMonthWinner = p; }
         }));
 
         const monthlyScores = Object.keys(monthlyTotals).map(p => {
           let title = '';
           const maxD = Math.max(...Object.entries(dailyTotals).filter(([k])=>k.startsWith(p+'|')).map(([_,v])=>v), 0);
-          const maxS = getPlayerMaxStreak(rows, p, thisMonth, thisYear);
-          
+          const maxS = getPlayerMaxStreak(rows, p, m, y);
           if (maxS >= CONFIG.THRESHOLDS.JUGGERNAUT_STREAK) title = 'Juggernaut';
           else if (p === currentGrimReaper) title = 'Grim Reaper';
           else if ((monthlyStreaksBrokenBy[p] || 0) >= CONFIG.THRESHOLDS.GODSLAYER_KILLS) title = 'Godslayer';
           else if (p === topPunisher) title = 'Punisher';
           else if (monthlyTotals[p] >= CONFIG.THRESHOLDS.CENTURION_POINTS) title = 'Centurion';
           else if (maxD >= CONFIG.THRESHOLDS.OVERACHIEVER_DAILY) title = 'Overachiever';
-
-          return { 
-            player: p, points: monthlyTotals[p], title,
-            icon: (currentStreakPlayer === p && !lastScoreWasNegative[p]) ? STREAK_TIERS[Math.min(currentStreakCount, 6)].icon : (lastScoreWasNegative[p] ? '💀' : '')
-          };
+          return { player: p, points: monthlyTotals[p], title, isLastMonthWinner: (p === lastMonthWinner), icon: (currentStreakPlayer === p && !lastScoreWasNegative[p]) ? STREAK_TIERS[Math.min(currentStreakCount, 6)].icon : (lastScoreWasNegative[p] ? '💀' : '') };
         }).sort((a,b) => b.points - a.points);
 
-        return { 
-          players: [...playersSet].sort(), allTimeHigh, monthlyScores,
-          lifetime: Object.entries(lifetimeTotals).map(([p, pts]) => ({player:p, points:pts})).sort((a,b)=>b.points-a.points),
-          log: logEntries.reverse().slice(0, 20)
-        };
+        return { players: [...playersSet].sort(), allTimeHigh, monthlyScores, lifetime: Object.entries(lifetimeTotals).map(([p, pts]) => ({player:p, points:pts})).sort((a,b)=>b.points-a.points), log: logEntries.reverse().slice(0, 20) };
       }
 
       function renderUI(data) {
-        const pSelect = document.getElementById('player');
-        const tSelect = document.getElementById('targetPlayer');
-        const currentP = pSelect.value;
-        const currentT = tSelect.value;
-        const optionsHtml = '<option value="">--Select Player--</option>' + data.players.map(p => `<option value="${p}">${p}</option>`).join('');
-        pSelect.innerHTML = optionsHtml;
-        tSelect.innerHTML = optionsHtml;
-        pSelect.value = currentP;
-        tSelect.value = currentT;
-
-        if (data.allTimeHigh.points > 0) {
-          document.getElementById('allTimeHigh').innerHTML = `<div class="high-score-box">🌟 All-Time Record: ${data.allTimeHigh.player} (${data.allTimeHigh.points} pts)</div>`;
-        }
-
-        let mHtml = '<h2>📅 Monthly Scores</h2><table><tr><th>Player</th><th>Points</th></tr>';
-        data.monthlyScores.forEach(r => {
-          const titleHtml = r.title ? `<span class="achievement" title="${achievementDescriptions[r.title] || ''}">${r.title}</span>` : '';
-          mHtml += `<tr><td>${r.icon} ${r.player}${titleHtml}</td><td>${r.points}</td></tr>`;
-        });
-        document.getElementById('leaderboard').innerHTML = mHtml + '</table>';
-
-        let lHtml = '<h2>🌟 Lifetime Scores</h2><table><tr><th>Player</th><th>Points</th></tr>';
-        data.lifetime.forEach(r => lHtml += `<tr><td>${r.player}</td><td>${r.points}</td></tr>`);
-        document.getElementById('lifetime').innerHTML = lHtml + '</table>';
-
-        let logHtml = '<h2>📰 Recent Scores</h2><ul style="list-style:none;padding:0">';
-        data.log.forEach(l => logHtml += `<li>${l.text}</li>`);
-        document.getElementById('log').innerHTML = logHtml + '</ul>';
+        const pS = document.getElementById('player'), tS = document.getElementById('targetPlayer'), curP = pS.value, curT = tS.value;
+        const opts = '<option value="">--Select Player--</option>' + data.players.map(p => `<option value="${p}">${p}</option>`).join('');
+        pS.innerHTML = opts; tS.innerHTML = opts; pS.value = curP; tS.value = curT;
+        if (data.allTimeHigh.points > 0) document.getElementById('allTimeHigh').innerHTML = `<div class="high-score-box">🌟 All-Time Record: ${data.allTimeHigh.player} (${data.allTimeHigh.points} pts)</div>`;
+        document.getElementById('leaderboard').innerHTML = '<h2>📅 Monthly Scores</h2><table><tr><th>Player</th><th>Points</th></tr>' + data.monthlyScores.map(r => `<tr><td>${r.icon} ${r.player}${r.isLastMonthWinner ? ' 🏆' : ''}${r.title ? `<span class="achievement" title="${achievementDescriptions[r.title] || ''}">${r.title}</span>` : ''}</td><td>${r.points}</td></tr>`).join('') + '</table>';
+        document.getElementById('lifetime').innerHTML = '<h2>🌟 Lifetime Scores</h2><table><tr><th>Player</th><th>Points</th></tr>' + data.lifetime.map(r => `<tr><td>${r.player}</td><td>${r.points}</td></tr>`).join('') + '</table>';
+        document.getElementById('log').innerHTML = '<h2>📰 Recent Scores</h2><ul style="list-style:none;padding:0">' + data.log.map(l => `<li>${l.text}</li>`).join('') + '</ul>';
         setupTooltips();
       }
 
       function getPlayerMaxStreak(rows, player, m, y) {
         let max = 0, curr = 0;
         rows.forEach(([ts, p, pts, tsRaw, scorer]) => {
-          if (ts.getMonth() !== m || ts.getFullYear() !== y) return;
-          if (scorer === player) { curr++; if (curr > max) max = curr; }
-          else { curr = 0; }
+          if (ts.getMonth() === m && ts.getFullYear() === y) {
+            if (scorer === player) { curr++; if (curr > max) max = curr; }
+            else curr = 0;
+          }
         });
         return max;
       }
 
       function createLogEntry(date, msg, isNeg, color) {
         const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        let style = isNeg ? "color:red; font-weight:bold;" : (color ? `color:${color}; font-weight:bold;` : "");
-        return { text: `<span style="${style}">[${time}] ${msg}</span>` };
+        return { text: `<span style="${isNeg ? "color:red; font-weight:bold;" : (color ? `color:${color}; font-weight:bold;` : "")}">[${time}] ${msg}</span>` };
       }
 
       function showToast() { const t = document.getElementById('toast'); t.style.visibility = 'visible'; setTimeout(()=>t.style.visibility='hidden', 2000); }
-      function playStreakAnimation(url) {
-        const div = document.getElementById('streakAnimation');
-        const img = document.getElementById('streakGif');
-        img.src = url; div.style.display = "flex";
-        setTimeout(() => { div.style.display = "none"; img.src = ""; }, 7000);
-      }
-      function checkForStreakAnimation(logText) {
-        const match = logText.match(/\((\d+) streak\)/);
-        if (match) playStreakAnimation(streakGifs[Math.min(Number(match[1]), 6)]);
-      }
-      function setupTooltips() {
-        document.querySelectorAll('.achievement').forEach(el => {
-          el.onclick = (e) => {
-            e.stopPropagation();
-            document.querySelectorAll('.touch-tooltip').forEach(t => t.remove());
-            const tt = document.createElement('div');
-            tt.className = 'touch-tooltip';
-            tt.textContent = el.getAttribute('title');
-            document.body.appendChild(tt);
-            const r = el.getBoundingClientRect();
-            tt.style.left = r.left + 'px'; tt.style.top = r.bottom + 5 + 'px';
-            document.addEventListener('click', () => tt.remove(), { once: true });
-          };
-        });
-      }
+      function playStreakAnimation(url) { const div = document.getElementById('streakAnimation'), img = document.getElementById('streakGif'); img.src = url; div.style.display = "flex"; setTimeout(() => { div.style.display = "none"; img.src = ""; }, 7000); }
+      function checkForStreakAnimation(logText) { const match = logText.match(/\((\d+) streak\)/); if (match) playStreakAnimation(streakGifs[Math.min(Number(match[1]), 6)]); }
+      function setupTooltips() { document.querySelectorAll('.achievement').forEach(el => { el.onclick = (e) => { e.stopPropagation(); document.querySelectorAll('.touch-tooltip').forEach(t => t.remove()); const tt = document.createElement('div'); tt.className = 'touch-tooltip'; tt.textContent = el.getAttribute('title'); document.body.appendChild(tt); const r = el.getBoundingClientRect(); tt.style.left = r.left + 'px'; tt.style.top = r.bottom + 5 + 'px'; document.addEventListener('click', () => tt.remove(), { once: true }); }; }); }
     </script>
   </body>
 </html>
