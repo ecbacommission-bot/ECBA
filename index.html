@@ -145,11 +145,10 @@
       .version-footer:hover {
         color: #ffcc00;
       }
-      /* PUNISH UI */
       #punishSection {
         display: none;
         background: rgba(255, 0, 0, 0.1);
-        border: 1px dashed #ff4444;
+        border: 1px dashed red;
         padding: 10px;
         border-radius: 10px;
         margin-top: 10px;
@@ -321,13 +320,12 @@
         const data = snapshot.val();
         if (!data) return;
 
-        // SAFE CONVERSION
         const rawRows = Object.values(data).map(d => [
           new Date(d.timestamp), 
           d.player, 
           d.points, 
           d.timestamp,
-          d.scorer || d.player
+          d.scorer || d.player // Safety fallback for old data
         ]);
         rawRows.sort((a, b) => a[0] - b[0]);
 
@@ -367,9 +365,8 @@
             }
             dailyTotals[`${player}|${timestamp.toISOString().split('T')[0]}`] = (dailyTotals[`${player}|${timestamp.toISOString().split('T')[0]}`] || 0) + points;
 
-            if (currentStreakPlayer === scorer) {
-              currentStreakCount++;
-            } else {
+            if (currentStreakPlayer === scorer) { currentStreakCount++; } 
+            else {
               if (currentStreakPlayer && currentStreakCount >= CONFIG.THRESHOLDS.GODLIKE_STREAK) monthlyStreaksBrokenBy[scorer] = (monthlyStreaksBrokenBy[scorer] || 0) + 1;
               currentStreakPlayer = scorer; currentStreakCount = 1;
             }
