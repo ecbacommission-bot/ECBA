@@ -10,7 +10,21 @@
       button { background-color: #ffcc00; color: #000; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; padding: 0.5em 1em; margin: 0.5em; font-size: 1em; transition: 0.2s; text-shadow: 0 0 3px #ffcc00; }
       button:hover { background-color: #ffaa00; text-shadow: 0 0 5px #ffaa00, 0 0 10px #ffaa00; }
       button:disabled { background-color: #555; color: #888; cursor: not-allowed; text-shadow: none; }
-      select, input[type="text"] { padding: 0.5em; margin: 0.5em; border-radius: 8px; border: none; font-size: 1em; background-color: #1e1e1e; color: #e0e0e0; box-shadow: 0 0 5px #ffcc00; }
+      
+      /* CENTERED DROPDOWNS & INPUTS */
+      select, input[type="text"] { 
+        padding: 0.5em; 
+        margin: 0.5em; 
+        border-radius: 8px; 
+        border: none; 
+        font-size: 1em; 
+        background-color: #1e1e1e; 
+        color: #e0e0e0; 
+        box-shadow: 0 0 5px #ffcc00; 
+        text-align: center; 
+        text-align-last: center; /* Specific for centering select text */
+      }
+
       table { margin: 1em auto; border-collapse: collapse; width: auto; max-width: 600px; box-shadow: 0 2px 15px rgba(255,204,0,0.3); }
       th, td { padding: 0.6em 1em; border-bottom: 1px solid #333; text-align: left; }
       th { background-color: #1e1e1e; color: #000; text-shadow: 0 0 5px #ffcc00; }
@@ -108,16 +122,27 @@
       };
 
       window.submitScore = async () => {
-        const scorer = (document.getElementById('player').value || document.getElementById('newPlayer').value).trim();
-        let target = pointsValue < 0 ? document.getElementById('targetPlayer').value : scorer;
-        if (!scorer || (pointsValue < 0 && !target)) return alert('Missing names');
+        const pDropdown = document.getElementById('player');
+        const nInput = document.getElementById('newPlayer');
+        const tDropdown = document.getElementById('targetPlayer');
+        
+        const scorer = (pDropdown.value || nInput.value).trim();
+        let target = pointsValue < 0 ? tDropdown.value : scorer;
+        
+        if (!scorer || (pointsValue < 0 && !target)) return alert('Select names first!');
+        
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
         showToast();
+
         try {
           await push(scoresRef, { player: target, points: pointsValue, scorer: scorer, timestamp: serverTimestamp() });
-          document.getElementById('newPlayer').value = '';
-          window.changePoints(1 - pointsValue);
+          
+          // RESET UI TO BLANK STATE
+          nInput.value = '';
+          pDropdown.selectedIndex = 0; // Reset to "Select Player"
+          tDropdown.selectedIndex = 0; // Reset to "Select Target"
+          window.changePoints(1 - pointsValue); // Reset points to 1
         } catch (e) { alert(e.message); }
         finally { btn.disabled = false; }
       };
@@ -159,9 +184,7 @@
             }
             maxStreaks[scorer] = Math.max(maxStreaks[scorer] || 0, curS);
             
-            // LOG ENTRIES WITH RUNNING TOTALS
             const currentTotal = mTotals[player] || 0;
-
             if (pts < 0) {
               pCounts[scorer] = (pCounts[scorer] || 0) + 1;
               victimCounts[player] = (victimCounts[player] || 0) + Math.abs(pts);
@@ -204,8 +227,11 @@
 
       function renderUI(data) {
         const pS = document.getElementById('player'), tS = document.getElementById('targetPlayer'), curP = pS.value, curT = tS.value;
-        const opts = '<option value="">--Select--</option>' + data.players.map(p => `<option value="${p}">${p}</option>`).join('');
-        pS.innerHTML = opts; tS.innerHTML = opts; pS.value = curP; tS.value = curT;
+        const opts = '<option value="">--Select Player--</option>' + data.players.map(p => `<option value="${p}">${p}</option>`).join('');
+        
+        pS.innerHTML = opts; tS.innerHTML = opts;
+        pS.value = curP; tS.value = curT;
+        
         if (data.allTimeHigh.points > 0) document.getElementById('allTimeHigh').innerHTML = `<div class="high-score-box">🌟 All-Time Record: ${data.allTimeHigh.player} (${data.allTimeHigh.points} pts)</div>`;
         document.getElementById('leaderboard').innerHTML = '<h2>📅 Monthly</h2><table>' + data.monthly.map(r => `<tr><td>${r.icon} ${r.name} <span class="achievement" title="${achievementDescs[r.title]||''}">${r.title}</span></td><td>${r.pts}</td></tr>`).join('') + '</table>';
         document.getElementById('lifetime').innerHTML = '<h2>🌟 Lifetime</h2><table>' + data.lifetime.map(r => `<tr><td>${r.player}</td><td>${r.points}</td></tr>`).join('') + '</table>';
