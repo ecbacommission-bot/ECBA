@@ -190,7 +190,7 @@
       <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/30a13bed097ece6848662daceff7f9572b6fd667/ECBA.png" alt="ECBA Logo" width="300" height="300"/>
     </div>
 
-    <div class="version-footer" onclick="window.location.reload(true);">
+    <div class="version-footer" onclick="document.getElementById('streakAnimation').style.display='none'; window.location.reload(true);">
       Build: {{VERSION}}
     </div>
 
@@ -287,17 +287,26 @@
         const data = snapshot.val();
         if (!data) return;
 
-        const rawRows = Object.values(data).map(d => [new Date(d.timestamp), d.player, d.points]);
+        // Convert the data into a sorted array
+        const rawRows = Object.values(data).map(d => [new Date(d.timestamp), d.player, d.points, d.timestamp]);
         rawRows.sort((a, b) => a[0] - b[0]);
 
         const processed = processLogic(rawRows);
         renderUI(processed);
         
+        // --- ANIMATION FRESHNESS CHECK ---
         const lastScore = rawRows[rawRows.length - 1];
-        if (lastScore[2] < 0) {
-          playStreakAnimation(negativeGif);
-        } else if (processed.log.length > 0) {
-          checkForStreakAnimation(processed.log[0].text);
+        const lastScoreTime = lastScore[3]; // The timestamp in milliseconds
+        const currentTime = Date.now();
+        const secondsSinceScore = (currentTime - lastScoreTime) / 1000;
+
+        // Only play animations if the score happened in the last 10 seconds (Live Submission)
+        if (secondsSinceScore < 10) {
+          if (lastScore[2] < 0) {
+            playStreakAnimation(negativeGif);
+          } else if (processed.log.length > 0) {
+            checkForStreakAnimation(processed.log[0].text);
+          }
         }
       });
 
