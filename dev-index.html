@@ -7,7 +7,6 @@
     
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
     <style>
@@ -24,7 +23,7 @@
         <h1 class="text-5xl font-black italic tracking-tighter text-warning mb-4 uppercase drop-shadow-lg">
             🏀 ECBA Slam Jam
         </h1>
-        <div v-if="allTimeHigh.points > 0" class="stats shadow bg-base-100 border border-warning/30">
+        <div v-if="allTimeHigh.points !== 0" class="stats shadow bg-base-100 border border-warning/30">
             <div class="stat">
                 <div class="stat-title uppercase text-xs font-bold">🌟 All-Time Record</div>
                 <div class="stat-value text-warning text-2xl">{{ allTimeHigh.player }}</div>
@@ -43,7 +42,7 @@
                     <div class="form-control">
                         <label class="label text-xs uppercase font-bold">Scorer</label>
                         <select v-model="form.scorer" class="select select-bordered select-warning w-full text-center">
-                            <option value="">-- Select Player --</option>
+                            <option value="">-- Choose Player --</option>
                             <option v-for="p in playersList" :key="p" :value="p">{{ p }}</option>
                         </select>
                         <input v-model="form.newPlayer" type="text" placeholder="Add New Player" class="input input-sm input-bordered mt-2 text-center" />
@@ -110,6 +109,23 @@
                 </table>
             </div>
 
+            <div v-if="view === 'lifetime'" class="overflow-x-auto card bg-base-100 shadow-xl">
+                <table class="table table-zebra font-medium">
+                    <thead>
+                        <tr class="text-warning opacity-70 uppercase text-xs">
+                            <th>Player</th>
+                            <th class="text-right">Lifetime Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="r in lifetimeScoresList" :key="r[0]">
+                            <td class="font-bold">{{ r[0] }}</td>
+                            <td class="text-right font-black text-lg">{{ r[1] }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
             <div v-if="view === 'recent'" class="card bg-base-100 shadow-xl p-4">
                 <ul class="space-y-2 max-h-[500px] overflow-y-auto pr-2">
                     <li v-for="(entry, i) in logList" :key="i" class="log-entry text-sm border-l-4 border-base-300 pl-3 py-1" :style="{ borderColor: entry.color || (entry.isNeg ? '#ff4444' : '#333') }">
@@ -121,7 +137,7 @@
         </div>
     </div>
 
-    <div v-if="overlay.show" @click="overlay.show = false" class="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+    <div v-if="overlay.show" @click="overlay.show = false" class="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm cursor-pointer">
         <img :src="overlay.gif" class="max-w-full max-h-full rounded-2xl border-4 border-warning shadow-[0_0_50px_rgba(255,204,0,0.5)]" />
     </div>
 
@@ -131,11 +147,6 @@
 </div>
 
 <script type="module">
-    /*
-    
-    The Vue instance observes 'reactive' variables. When Firebase 
-    updates these variables, the UI re-renders automatically.
-    */
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
@@ -143,17 +154,16 @@
 
     createApp({
         setup() {
-            // REACTIVE STATE
             const view = vRef('monthly');
             const submitting = vRef(false);
             const playersList = vRef([]);
             const monthlyScoresList = vRef([]);
+            const lifetimeScoresList = vRef([]);
             const logList = vRef([]);
             const allTimeHigh = vRef({ player: 'N/A', points: 0 });
             const overlay = vRef({ show: false, gif: '' });
             const form = vRef({ scorer: '', newPlayer: '', target: '', points: 1 });
 
-            // CONSTANTS
             const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
             const TIERS = {
                 2: { icon: '🔥', title: 'is ON FIRE!', color: '#fb923c', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
@@ -163,7 +173,6 @@
                 6: { icon: '🌌', title: 'is GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
             };
 
-            // FIREBASE
             const firebaseConfig = {
                 apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g",
                 authDomain: "ecba-slamjam.firebaseapp.com",
@@ -173,6 +182,7 @@
                 messagingSenderId: "194161211475",
                 appId: "1:194161211475:web:1fbd26416759f10587aea6"
             };
+
             const fbApp = initializeApp(firebaseConfig);
             const fbDb = getDatabase(fbApp);
             const fbRef = ref(fbDb, 'scores');
@@ -184,15 +194,14 @@
                     const rows = Object.values(data).map(d => [new Date(d.timestamp), d.player, d.points, d.timestamp, d.scorer || d.player]);
                     rows.sort((a,b) => a[0]-b[0]);
                     
-                    // Trigger Logic
                     processData(rows);
                     
-                    // Check for fresh animations
                     const last = rows[rows.length-1];
                     if ((Date.now() - last[3])/1000 < 10) {
                         if (last[2] < 0) showAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
-                        else if (logList.value[0]?.text.includes("Streak")) {
-                           const m = logList.value[0].text.match(/Streak of (\d+)/);
+                        else {
+                           const firstLog = logList.value[0]?.text || "";
+                           const m = firstLog.match(/Streak of (\d+)/);
                            if (m) showAnim(TIERS[Math.min(m[1], 6)].gif);
                         }
                     }
@@ -201,7 +210,7 @@
 
             const processData = (rows) => {
                 const now = new Date(), m = now.getMonth(), y = now.getFullYear();
-                const players = new Set(), mTotals = {}, dTotals = {}, pCounts = {}, victimCounts = {}, maxStreaks = {}, slayers = {}, hist = {}, logs = [];
+                const players = new Set(), mTotals = {}, lTotals = {}, dTotals = {}, pCounts = {}, victimCounts = {}, maxStreaks = {}, slayers = {}, hist = {}, logs = [];
                 let curP = null, curS = 0;
 
                 rows.forEach(([date, player, pts, ts, scorer]) => {
@@ -211,6 +220,7 @@
                     
                     if (!hist[mk]) hist[mk] = {};
                     hist[mk][player] = (hist[mk][player] || 0) + pts;
+                    if (pts > 0) lTotals[player] = (lTotals[player] || 0) + pts;
                     
                     if (isM) {
                         mTotals[player] = (mTotals[player] || 0) + pts;
@@ -237,7 +247,6 @@
                     }
                 });
 
-                // Map to UI
                 playersList.value = [...players].sort();
                 logList.value = logs.slice(0, 20);
                 
@@ -255,6 +264,8 @@
                     else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
                     return { name: p, pts, title, icon: (curP === p && pts > 0) ? TIERS[Math.min(curS, 6)].icon : '' };
                 }).sort((a,b)=>b.pts-a.pts);
+
+                lifetimeScoresList.value = Object.entries(lTotals).sort((a,b)=>b[1]-a[1]);
 
                 let high = { player: 'N/A', points: 0 };
                 Object.keys(hist).forEach(key => Object.entries(hist[key]).forEach(([p, pts]) => {
@@ -278,7 +289,7 @@
                 submitting.value = false;
             };
 
-            return { view, playersList, monthlyScoresList, logList, allTimeHigh, form, changePoints, submitScore, overlay };
+            return { view, playersList, monthlyScoresList, lifetimeScoresList, logList, allTimeHigh, form, changePoints, submitScore, overlay };
         }
     }).mount('#app');
 </script>
