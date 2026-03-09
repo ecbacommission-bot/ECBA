@@ -212,7 +212,6 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
       import { getDatabase, ref, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-      // 1. FIREBASE CONFIG
       const firebaseConfig = {
         apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g",
         authDomain: "ecba-slamjam.firebaseapp.com",
@@ -227,7 +226,6 @@
       const db = getDatabase(app);
       const scoresRef = ref(db, 'scores');
 
-      // 2. APP STATE & CONSTANTS
       let pointsValue = 1;
       const CONFIG = {
         THRESHOLDS: { JUGGERNAUT_STREAK: 10, CENTURION_POINTS: 100, OVERACHIEVER_DAILY: 25, GODSLAYER_KILLS: 3, STREAKER_MIN_COUNT: 10, GODLIKE_STREAK: 6 }
@@ -258,7 +256,6 @@
       };
       const negativeGif = "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif";
 
-      // 3. UI FUNCTIONS
       window.changePoints = (delta) => {
         let newValue = pointsValue + delta;
         if (pointsValue > 0 && newValue === 0) newValue = -1;
@@ -266,7 +263,6 @@
         pointsValue = Math.max(-100, Math.min(100, newValue));
         document.getElementById('pointsDisplay').textContent = pointsValue;
 
-        // Toggle Punish Target Selection
         const punishUI = document.getElementById('punishSection');
         const label = document.getElementById('pointsLabel');
         if (pointsValue < 0) {
@@ -289,7 +285,6 @@
         if (!scorer || pointsValue === 0) return alert('Enter a player and valid score.');
         
         let finalTarget = scorer;
-        // Logic: Scorer is the one shooting. Target is who gets the points.
         if (pointsValue < 0) {
           if (!tInput.value) return alert('Select a player to punish!');
           finalTarget = tInput.value;
@@ -304,10 +299,11 @@
           await push(scoresRef, {
             player: finalTarget,
             points: Number(pointsValue),
-            scorer: scorer, // Tracking who actually shot the ball
+            scorer: scorer,
             timestamp: serverTimestamp()
           });
           nInput.value = '';
+          pInput.value = '';
           pointsValue = 1;
           document.getElementById('pointsDisplay').textContent = 1;
           document.getElementById('punishSection').style.display = 'none';
@@ -321,27 +317,20 @@
         }
       };
 
-      // 4. DATA PROCESSING
       onValue(scoresRef, (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
 
-        const rawRows = Object.values(data).map(d => [
-          new Date(d.timestamp), 
-          d.player, 
-          d.points, 
-          d.timestamp, 
-          d.scorer || d.player // Use scorer field if it exists (for new logic), fallback to player for history
-        ]);
+        const rawRows = Object.entries(data).map(([key, d]) => {
+          return [new Date(d.timestamp), d.player, d.points, d.timestamp, d.scorer || d.player];
+        });
         rawRows.sort((a, b) => a[0] - b[0]);
 
         const processed = processLogic(rawRows);
         renderUI(processed);
         
         const lastScore = rawRows[rawRows.length - 1];
-        const lastScoreTime = lastScore[3];
-        const currentTime = Date.now();
-        const secondsSinceScore = (currentTime - lastScoreTime) / 1000;
+        const secondsSinceScore = (Date.now() - lastScore[3]) / 1000;
 
         if (secondsSinceScore < 10) {
           if (lastScore[2] < 0) {
@@ -357,8 +346,8 @@
         const thisMonth = now.getMonth(), thisYear = now.getFullYear();
         
         const playersSet = new Set(), monthlyTotals = {}, lifetimeTotals = {}, dailyTotals = {}, negativeTotals = {};
-        const monthlyStreakCounts = {}, monthlyStreaksBrokenBy = {}, logEntries = [], historyMap = {};
-        const punishCounts = {}; // Track who sends punishments
+        const monthlyStreaksBrokenBy = {}, logEntries = [], historyMap = {};
+        const punishCounts = {}; 
         let currentStreakPlayer = null, currentStreakCount = 0, currentGrimReaper = null;
         const monthlyActivePlayers = new Set(), lastScoreWasNegative = {};
 
@@ -385,14 +374,11 @@
             const dateStr = timestamp.toISOString().split('T')[0];
             dailyTotals[`${player}|${dateStr}`] = (dailyTotals[`${player}|${dateStr}`] || 0) + points;
 
-            // STREAK LOGIC: Based on Scorer.
             if (currentStreakPlayer === scorer) {
-              // Streak continues whether it's a positive score or a punisher score
               currentStreakCount++;
             } else {
-              // Streak is ended because ANOTHER player made a basket (positive or punisher)
-              if (currentStreakPlayer && currentStreakCount >= 2) {
-                if (currentStreakCount >= CONFIG.THRESHOLDS.GODLIKE_STREAK) monthlyStreaksBrokenBy[scorer] = (monthlyStreaksBrokenBy[scorer] || 0) + 1;
+              if (currentStreakPlayer && currentStreakCount >= CONFIG.THRESHOLDS.GODLIKE_STREAK) {
+                monthlyStreaksBrokenBy[scorer] = (monthlyStreaksBrokenBy[scorer] || 0) + 1;
               }
               currentStreakPlayer = scorer; 
               currentStreakCount = 1;
@@ -414,7 +400,6 @@
           }
         });
 
-        // Find Top Punisher
         let topPunisher = null;
         let maxP = 0;
         Object.entries(punishCounts).forEach(([p, count]) => {
@@ -422,13 +407,8 @@
         });
 
         let allTimeHigh = { player: 'N/A', points: 0 };
-        const lastMonthDate = new Date(thisYear, thisMonth - 1, 1);
-        const lastMonthKey = `${lastMonthDate.getFullYear()}-${lastMonthDate.getMonth()}`;
-        let lastMonthWinner = null, lastMonthTop = -Infinity;
-
         Object.keys(historyMap).forEach(m => Object.entries(historyMap[m]).forEach(([p, pts]) => {
           if (pts > allTimeHigh.points) allTimeHigh = { player: p, points: pts };
-          if (m === lastMonthKey && pts > lastMonthTop) { lastMonthTop = pts; lastMonthWinner = p; }
         }));
 
         const monthlyScores = Object.keys(monthlyTotals).map(p => {
@@ -444,7 +424,7 @@
           else if (maxD >= CONFIG.THRESHOLDS.OVERACHIEVER_DAILY) title = 'Overachiever';
 
           return { 
-            player: p, points: monthlyTotals[p], title, isLastMonthWinner: (p === lastMonthWinner),
+            player: p, points: monthlyTotals[p], title,
             icon: (currentStreakPlayer === p && !lastScoreWasNegative[p]) ? STREAK_TIERS[Math.min(currentStreakCount, 6)].icon : (lastScoreWasNegative[p] ? '💀' : '')
           };
         }).sort((a,b) => b.points - a.points);
@@ -461,13 +441,9 @@
         const tSelect = document.getElementById('targetPlayer');
         const currentP = pSelect.value;
         const currentT = tSelect.value;
-        
-        const optionsHtml = '<option value="">--Select Player--</option>' + 
-          data.players.map(p => `<option value="${p}">${p}</option>`).join('');
-        
+        const optionsHtml = '<option value="">--Select Player--</option>' + data.players.map(p => `<option value="${p}">${p}</option>`).join('');
         pSelect.innerHTML = optionsHtml;
         tSelect.innerHTML = optionsHtml;
-        
         pSelect.value = currentP;
         tSelect.value = currentT;
 
@@ -478,7 +454,7 @@
         let mHtml = '<h2>📅 Monthly Scores</h2><table><tr><th>Player</th><th>Points</th></tr>';
         data.monthlyScores.forEach(r => {
           const titleHtml = r.title ? `<span class="achievement" title="${achievementDescriptions[r.title] || ''}">${r.title}</span>` : '';
-          mHtml += `<tr><td>${r.icon} ${r.player}${r.isLastMonthWinner ? ' 🏆' : ''}${titleHtml}</td><td>${r.points}</td></tr>`;
+          mHtml += `<tr><td>${r.icon} ${r.player}${titleHtml}</td><td>${r.points}</td></tr>`;
         });
         document.getElementById('leaderboard').innerHTML = mHtml + '</table>';
 
@@ -496,7 +472,6 @@
         let max = 0, curr = 0;
         rows.forEach(([ts, p, pts, tsRaw, scorer]) => {
           if (ts.getMonth() !== m || ts.getFullYear() !== y) return;
-          // Streak is owned by the Scorer
           if (scorer === player) { curr++; if (curr > max) max = curr; }
           else { curr = 0; }
         });
@@ -510,19 +485,16 @@
       }
 
       function showToast() { const t = document.getElementById('toast'); t.style.visibility = 'visible'; setTimeout(()=>t.style.visibility='hidden', 2000); }
-      
       function playStreakAnimation(url) {
         const div = document.getElementById('streakAnimation');
         const img = document.getElementById('streakGif');
         img.src = url; div.style.display = "flex";
         setTimeout(() => { div.style.display = "none"; img.src = ""; }, 7000);
       }
-
       function checkForStreakAnimation(logText) {
         const match = logText.match(/\((\d+) streak\)/);
         if (match) playStreakAnimation(streakGifs[Math.min(Number(match[1]), 6)]);
       }
-
       function setupTooltips() {
         document.querySelectorAll('.achievement').forEach(el => {
           el.onclick = (e) => {
