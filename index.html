@@ -5,30 +5,167 @@
     <meta charset="utf-8" />
     <title>ECBA Slam Jam</title>
     <style>
-      body { font-family: 'Segoe UI', sans-serif; margin: 2em; background-color: #121212; color: #e0e0e0; text-align: center; }
-      h1, h2 { color: #000; text-shadow: 0 0 5px #ffcc00, 0 0 10px #ffcc00, 0 0 20px #ffcc00; }
-      button { background-color: #ffcc00; color: #000; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; padding: 0.5em 1em; margin: 0.5em; font-size: 1em; transition: 0.2s; text-shadow: 0 0 3px #ffcc00; }
-      button:hover { background-color: #ffaa00; text-shadow: 0 0 5px #ffaa00, 0 0 10px #ffaa00; }
-      button:disabled { background-color: #555; color: #888; cursor: not-allowed; text-shadow: none; }
-      select, input[type="text"] { padding: 0.5em; margin: 0.5em; border-radius: 8px; border: none; font-size: 1em; background-color: #1e1e1e; color: #e0e0e0; box-shadow: 0 0 5px #ffcc00; }
-      table { margin: 1em auto; border-collapse: collapse; width: auto; max-width: 600px; box-shadow: 0 2px 15px rgba(255,204,0,0.3); }
-      th, td { padding: 0.6em 1em; border-bottom: 1px solid #333; text-align: left; }
-      th { background-color: #1e1e1e; color: #000; text-shadow: 0 0 5px #ffcc00; }
-      tr:nth-child(even) td { background-color: #1a1a1a; }
-      .section { margin-top: 2em; }
-      .toast { visibility: hidden; background-color: #4CAF50; color: white; text-align: center; border-radius: 10px; padding: 1em; position: fixed; z-index: 1; left: 50%; top: 30px; transform: translateX(-50%); font-weight: bold; }
-      .achievement { color: #ffdd55; font-style: italic; margin-left: 0.3em; cursor: help; font-size: 0.85em; border-bottom: 1px dotted #ffdd55; }
-      .high-score-box { background: #1e1e1e; border: 2px solid #ffcc00; padding: 10px; border-radius: 12px; display: inline-block; margin-bottom: 1.5em; font-weight: bold; color: #ffcc00; box-shadow: 0 0 10px rgba(255,204,0,0.2); }
-      #streakAnimation { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.70); display: none; justify-content: center; align-items: center; z-index: 99999; animation: fadeIn 0.3s ease-out; cursor: pointer; }
-      #streakAnimation img { max-width: 90vw; max-height: 90vh; border-radius: 20px; box-shadow: 0 0 40px #ffcc00; }
-      .version-footer { margin-top: 3em; padding-bottom: 2em; font-size: 0.8em; color: #444; cursor: pointer; user-select: none; transition: color 0.2s; }
-      #punishSection { display: none; background: rgba(255, 0, 0, 0.1); border: 1px dashed red; padding: 10px; border-radius: 10px; margin-top: 10px; }
-      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      body {
+        font-family: 'Segoe UI', sans-serif;
+        margin: 2em;
+        background-color: #121212;
+        color: #e0e0e0;
+        text-align: center;
+      }
+      h1, h2 {
+        color: #000;
+        text-shadow: 0 0 5px #ffcc00, 0 0 10px #ffcc00, 0 0 20px #ffcc00;
+      }
+      button {
+        background-color: #ffcc00;
+        color: #000;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 8px;
+        border: none;
+        padding: 0.5em 1em;
+        margin: 0.5em;
+        font-size: 1em;
+        transition: 0.2s;
+        text-shadow: 0 0 3px #ffcc00;
+      }
+      button:hover {
+        background-color: #ffaa00;
+        text-shadow: 0 0 5px #ffaa00, 0 0 10px #ffaa00;
+      }
+      button:disabled {
+        background-color: #555;
+        color: #888;
+        cursor: not-allowed;
+        text-shadow: none;
+      }
+      select, input[type="text"], input[type="number"] {
+        padding: 0.5em;
+        margin: 0.5em;
+        border-radius: 8px;
+        border: none;
+        font-size: 1em;
+        background-color: #1e1e1e;
+        color: #e0e0e0;
+        box-shadow: 0 0 5px #ffcc00;
+      }
+      table {
+        margin: 1em auto;
+        border-collapse: collapse;
+        width: auto;
+        max-width: 600px;
+        box-shadow: 0 2px 15px rgba(255,204,0,0.3);
+      }
+      th, td {
+        padding: 0.6em 1em;
+        border-bottom: 1px solid #333;
+        text-align: left;
+      }
+      th {
+        background-color: #1e1e1e;
+        color: #000;
+        text-shadow: 0 0 5px #ffcc00;
+      }
+      tr:nth-child(even) td {
+        background-color: #1a1a1a;
+      }
+      .section {
+        margin-top: 2em;
+      }
+      .toast {
+        visibility: hidden;
+        background-color: #4CAF50;
+        color: white;
+        text-align: center;
+        border-radius: 10px;
+        padding: 1em;
+        position: fixed;
+        z-index: 1;
+        left: 50%;
+        top: 30px;
+        transform: translateX(-50%);
+        font-weight: bold;
+      }
+      .achievement {
+        color: #ffdd55;
+        font-style: italic;
+        margin-left: 0.3em;
+        cursor: help;
+      }
+      .touch-tooltip {
+        position: fixed;
+        background: #333;
+        color: #fff;
+        padding: 0.3em 0.5em;
+        border-radius: 5px;
+        z-index: 9999;
+        box-shadow: 0 0 5px #ffcc00;
+        max-width: 200px;
+      }
+      .high-score-box {
+        background: #1e1e1e;
+        border: 2px solid #ffcc00;
+        padding: 10px;
+        border-radius: 12px;
+        display: inline-block;
+        margin-bottom: 1.5em;
+        font-weight: bold;
+        color: #ffcc00;
+        box-shadow: 0 0 10px rgba(255,204,0,0.2);
+      }
+      #streakAnimation {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.70);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+        animation: fadeIn 0.3s ease-out;
+        cursor: pointer; 
+      }
+      #streakAnimation img {
+        max-width: 90vw;
+        max-height: 90vh;
+        border-radius: 20px;
+        box-shadow: 0 0 40px #ffcc00;
+      }
+      .version-footer {
+        margin-top: 3em;
+        padding-bottom: 2em;
+        font-size: 0.8em;
+        color: #444;
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.2s;
+      }
+      .version-footer:hover {
+        color: #ffcc00;
+      }
+      #punishSection {
+        display: none;
+        background: rgba(255, 0, 0, 0.1);
+        border: 1px dashed #ff4444;
+        padding: 10px;
+        border-radius: 10px;
+        margin-top: 10px;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      @media (max-width: 480px) {
+        #streakAnimation img { max-width: 95vw; }
+      }
     </style>
   </head>
 
   <body>
     <h1>🏀 ECBA Slam Jam</h1>
+
     <div id="allTimeHigh"></div>
 
     <div>
@@ -40,32 +177,42 @@
     <div style="margin-top: 1.5em;">
       <h2 id="pointsLabel" style="color:#ffcc00;text-shadow:0 0 10px #ffcc00">Points</h2>
       <div style="display:flex;justify-content:center;align-items:center;gap:1em;">
-        <button onclick="changePoints(-1)">−</button>
+        <button style="font-size:2em;padding:0.4em 0.8em;" onclick="changePoints(-1)">−</button>
         <div id="pointsDisplay" style="font-size:2.5em;min-width:60px;">1</div>
-        <button onclick="changePoints(1)">+</button>
+        <button style="font-size:2em;padding:0.4em 0.8em;" onclick="changePoints(1)">+</button>
       </div>
+
       <div id="punishSection">
-        <label style="color:red; font-weight:bold;">Penalty To:</label><br>
+        <label style="color:red; font-weight:bold;">Assign Penalty To:</label><br>
         <select id="targetPlayer"></select>
       </div>
-      <button id="submitBtn" style="margin-top:1em;" onclick="submitScore()">Submit Score</button>
+
+      <button id="submitBtn" style="margin-top:1em;font-size:1.4em;padding:0.4em 1.2em;" onclick="submitScore()">Submit Score</button>
     </div>
 
     <div id="toast" class="toast">✅ Score submitted!</div>
+
     <div id="leaderboard" class="section"></div>
     <div id="lifetime" class="section"></div>
     <div id="log" class="section"></div>
 
-    <div id="streakAnimation" onclick="this.style.display='none';">
-      <img id="streakGif" src="" />
+    <div id="streakAnimation" aria-hidden="true" onclick="this.style.display='none'; document.getElementById('streakGif').src='';">
+      <img id="streakGif" src="" alt="streak animation" />
     </div>
 
-    <div class="version-footer">Build: {{VERSION}}</div>
+    <div id="footer-image">
+      <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/30a13bed097ece6848662daceff7f9572b6fd667/ECBA.png" alt="ECBA Logo" width="300" height="300"/>
+    </div>
+
+    <div class="version-footer" onclick="document.getElementById('streakAnimation').style.display='none'; window.location.reload(true);">
+      Build: {{VERSION}}
+    </div>
 
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
       import { getDatabase, ref, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+      // 1. FIREBASE CONFIG
       const firebaseConfig = {
         apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g",
         authDomain: "ecba-slamjam.firebaseapp.com",
@@ -80,96 +227,317 @@
       const db = getDatabase(app);
       const scoresRef = ref(db, 'scores');
 
+      // 2. APP STATE & CONSTANTS
       let pointsValue = 1;
-      const CONFIG = { THRESHOLDS: { JUGGERNAUT_STREAK: 10, CENTURION_POINTS: 100, OVERACHIEVER_DAILY: 25, GODSLAYER_KILLS: 3, GODLIKE_STREAK: 6 } };
-      const STREAK_TIERS = { 2: { icon: '🔥' }, 3: { icon: '💥' }, 4: { icon: '👑' }, 5: { icon: '⚡' }, 6: { icon: '🌌' } };
-      const achievementDescs = { "Juggernaut": "10+ streak", "Godslayer": "Ended 3 Godlike streaks", "Punisher": "Most punishments sent", "The Punished": "Most penalties received", "Centurion": "100+ points this month", "Overachiever": "25+ pts in one day" };
+      const CONFIG = {
+        THRESHOLDS: { JUGGERNAUT_STREAK: 10, CENTURION_POINTS: 100, OVERACHIEVER_DAILY: 25, GODSLAYER_KILLS: 3, STREAKER_MIN_COUNT: 10, GODLIKE_STREAK: 6 }
+      };
+      const STREAK_TIERS = {
+        2: { icon: '🔥', title: 'ON FIRE!', color: 'orange' },
+        3: { icon: '💥', title: 'LEGENDARY!', color: 'yellow' },
+        4: { icon: '👑', title: 'EPIC!', color: 'green' },
+        5: { icon: '⚡', title: 'UNSTOPPABLE!', color: 'blue' },
+        6: { icon: '🌌', title: 'GODLIKE!', color: 'purple' }
+      };
+      const achievementDescriptions = {
+        "Godslayer": "Earned by ending three godlike streaks.",
+        "Centurion": "Earns 100+ points in a single month.",
+        "Juggernaut": "Awarded for achieving a single streak of 10+ baskets.",
+        "Overachiever": "Earned 25+ points in a single day this month.",
+        "The Punished": "Player with the most negative points earned this month.",
+        "Punisher": "Awarded to the player who has punished others the most this month.",
+        "Grim Reaper": "Awarded when all other players have skulls and you are the final survivor.",
+        "The Streaker": "Player with the most unique streaks (10+) this month."
+      };
+      const streakGifs = {
+        2: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif",
+        3: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif",
+        4: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif",
+        5: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif",
+        6: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif"
+      };
+      const negativeGif = "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif";
 
+      // 3. UI FUNCTIONS
       window.changePoints = (delta) => {
-        pointsValue += delta;
-        if (pointsValue === 0) pointsValue = (delta > 0) ? 1 : -1;
+        let newValue = pointsValue + delta;
+        if (pointsValue > 0 && newValue === 0) newValue = -1;
+        if (pointsValue < 0 && newValue === 0) newValue = 1;
+        pointsValue = Math.max(-100, Math.min(100, newValue));
         document.getElementById('pointsDisplay').textContent = pointsValue;
-        document.getElementById('punishSection').style.display = pointsValue < 0 ? 'block' : 'none';
-        document.getElementById('pointsLabel').textContent = pointsValue < 0 ? 'Punisher Ball' : 'Points';
-        document.getElementById('pointsLabel').style.color = pointsValue < 0 ? 'red' : '#ffcc00';
+
+        // Toggle Punish Target Selection
+        const punishUI = document.getElementById('punishSection');
+        const label = document.getElementById('pointsLabel');
+        if (pointsValue < 0) {
+          punishUI.style.display = 'block';
+          label.style.color = 'red';
+          label.textContent = 'Punisher Ball';
+        } else {
+          punishUI.style.display = 'none';
+          label.style.color = '#ffcc00';
+          label.textContent = 'Points';
+        }
       };
 
       window.submitScore = async () => {
-        const scorer = (document.getElementById('player').value || document.getElementById('newPlayer').value).trim();
-        let target = pointsValue < 0 ? document.getElementById('targetPlayer').value : scorer;
-        if (!scorer || (pointsValue < 0 && !target)) return alert('Missing names');
+        const pInput = document.getElementById('player');
+        const nInput = document.getElementById('newPlayer');
+        const tInput = document.getElementById('targetPlayer');
+        const scorer = (pInput.value || nInput.value).trim();
+        
+        if (!scorer || pointsValue === 0) return alert('Enter a player and valid score.');
+        
+        let finalTarget = scorer;
+        // Logic: Scorer is the one shooting. Target is who gets the points.
+        if (pointsValue < 0) {
+          if (!tInput.value) return alert('Select a player to punish!');
+          finalTarget = tInput.value;
+        }
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        showToast();
+
         try {
-          await push(scoresRef, { player: target, points: pointsValue, scorer: scorer, timestamp: serverTimestamp() });
-          document.getElementById('newPlayer').value = '';
-          window.changePoints(1 - pointsValue);
-        } catch (e) { alert(e.message); }
+          await push(scoresRef, {
+            player: finalTarget,
+            points: Number(pointsValue),
+            scorer: scorer, // Tracking who actually shot the ball
+            timestamp: serverTimestamp()
+          });
+          nInput.value = '';
+          pointsValue = 1;
+          document.getElementById('pointsDisplay').textContent = 1;
+          document.getElementById('punishSection').style.display = 'none';
+          document.getElementById('pointsLabel').textContent = 'Points';
+          document.getElementById('pointsLabel').style.color = '#ffcc00';
+        } catch (e) {
+          alert("Error: " + e.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Submit Score';
+        }
       };
 
+      // 4. DATA PROCESSING
       onValue(scoresRef, (snapshot) => {
-        const data = snapshot.val(); if (!data) return;
-        const rows = Object.values(data).map(d => [new Date(d.timestamp), d.player, d.points, d.timestamp, d.scorer || d.player]);
-        rows.sort((a,b) => a[0]-b[0]);
-        const processed = processLogic(rows);
+        const data = snapshot.val();
+        if (!data) return;
+
+        const rawRows = Object.values(data).map(d => [
+          new Date(d.timestamp), 
+          d.player, 
+          d.points, 
+          d.timestamp, 
+          d.scorer || d.player // Use scorer field if it exists (for new logic), fallback to player for history
+        ]);
+        rawRows.sort((a, b) => a[0] - b[0]);
+
+        const processed = processLogic(rawRows);
         renderUI(processed);
-        const last = rows[rows.length-1];
-        if ((Date.now() - last[3])/1000 < 10) {
-           if (last[2] < 0) playAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
+        
+        const lastScore = rawRows[rawRows.length - 1];
+        const lastScoreTime = lastScore[3];
+        const currentTime = Date.now();
+        const secondsSinceScore = (currentTime - lastScoreTime) / 1000;
+
+        if (secondsSinceScore < 10) {
+          if (lastScore[2] < 0) {
+            playStreakAnimation(negativeGif);
+          } else if (processed.log.length > 0) {
+            checkForStreakAnimation(processed.log[0].text);
+          }
         }
       });
 
       function processLogic(rows) {
-        const now = new Date(), m = now.getMonth(), y = now.getFullYear();
-        const players = new Set(), mTotals = {}, lTotals = {}, dTotals = {}, pCounts = {}, victimCounts = {}, maxStreaks = {}, slayers = {};
-        let curP = null, curS = 0;
+        const now = new Date();
+        const thisMonth = now.getMonth(), thisYear = now.getFullYear();
+        
+        const playersSet = new Set(), monthlyTotals = {}, lifetimeTotals = {}, dailyTotals = {}, negativeTotals = {};
+        const monthlyStreakCounts = {}, monthlyStreaksBrokenBy = {}, logEntries = [], historyMap = {};
+        const punishCounts = {}; // Track who sends punishments
+        let currentStreakPlayer = null, currentStreakCount = 0, currentGrimReaper = null;
+        const monthlyActivePlayers = new Set(), lastScoreWasNegative = {};
 
-        rows.forEach(([date, player, pts, ts, scorer]) => {
-          players.add(player); players.add(scorer);
-          if (pts > 0) lTotals[player] = (lTotals[player] || 0) + pts;
-          if (date.getMonth() === m && date.getFullYear() === y) {
-            mTotals[player] = (mTotals[player] || 0) + pts;
-            const day = date.toDateString();
-            dTotals[player+day] = (dTotals[player+day] || 0) + pts;
+        rows.forEach(([timestamp, player, points, tsRaw, scorer]) => {
+          playersSet.add(player);
+          playersSet.add(scorer);
+          const rMonth = timestamp.getMonth(), rYear = timestamp.getFullYear();
+          const isThisMonth = (rMonth === thisMonth && rYear === thisYear);
+          const monthKey = `${rYear}-${rMonth}`;
+
+          if (!historyMap[monthKey]) historyMap[monthKey] = {};
+          historyMap[monthKey][player] = (historyMap[monthKey][player] || 0) + points;
+          if (points > 0) lifetimeTotals[player] = (lifetimeTotals[player] || 0) + points;
+
+          if (isThisMonth) {
+            monthlyTotals[player] = (monthlyTotals[player] || 0) + points;
+            monthlyActivePlayers.add(player);
             
-            if (curP === scorer) curS++; else {
-              if (curP && curS >= CONFIG.THRESHOLDS.GODLIKE_STREAK) slayers[scorer] = (slayers[scorer] || 0) + 1;
-              curP = scorer; curS = 1;
+            if (points < 0) {
+              negativeTotals[player] = (negativeTotals[player] || 0) + Math.abs(points);
+              punishCounts[scorer] = (punishCounts[scorer] || 0) + 1;
             }
-            maxStreaks[scorer] = Math.max(maxStreaks[scorer] || 0, curS);
-            if (pts < 0) {
-              pCounts[scorer] = (pCounts[scorer] || 0) + 1;
-              victimCounts[player] = (victimCounts[player] || 0) + Math.abs(pts);
+            
+            const dateStr = timestamp.toISOString().split('T')[0];
+            dailyTotals[`${player}|${dateStr}`] = (dailyTotals[`${player}|${dateStr}`] || 0) + points;
+
+            // STREAK LOGIC: Based on Scorer.
+            if (currentStreakPlayer === scorer) {
+              // Streak continues whether it's a positive score or a punisher score
+              currentStreakCount++;
+            } else {
+              // Streak is ended because ANOTHER player made a basket (positive or punisher)
+              if (currentStreakPlayer && currentStreakCount >= 2) {
+                if (currentStreakCount >= CONFIG.THRESHOLDS.GODLIKE_STREAK) monthlyStreaksBrokenBy[scorer] = (monthlyStreaksBrokenBy[scorer] || 0) + 1;
+              }
+              currentStreakPlayer = scorer; 
+              currentStreakCount = 1;
             }
+
+            lastScoreWasNegative[player] = (points < 0);
+
+            if (points < 0) {
+              logEntries.push(createLogEntry(timestamp, `${scorer} punished ${player}! (${points})`, true));
+            } else if (currentStreakCount >= 2) {
+              const tier = STREAK_TIERS[Math.min(currentStreakCount, 6)];
+              logEntries.push(createLogEntry(timestamp, `${scorer}: ${tier.title} (${currentStreakCount} streak) ${tier.icon}`, false, tier.color));
+            } else {
+              logEntries.push(createLogEntry(timestamp, `${player} scored ${points}.`, false));
+            }
+            
+            const survivors = [...monthlyActivePlayers].filter(p => !lastScoreWasNegative[p]);
+            currentGrimReaper = (survivors.length === 1 && monthlyActivePlayers.size > 1) ? survivors[0] : null;
           }
         });
 
-        const topP = Object.entries(pCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
-        const topV = Object.entries(victimCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
+        // Find Top Punisher
+        let topPunisher = null;
+        let maxP = 0;
+        Object.entries(punishCounts).forEach(([p, count]) => {
+          if (count > maxP) { maxP = count; topPunisher = p; }
+        });
 
-        return {
-          players: [...players].sort(),
-          monthly: Object.entries(mTotals).map(([p, pts]) => {
-            let title = "";
-            if (maxStreaks[p] >= CONFIG.THRESHOLDS.JUGGERNAUT_STREAK) title = "Juggernaut";
-            else if (slayers[p] >= CONFIG.THRESHOLDS.GODSLAYER_KILLS) title = "Godslayer";
-            else if (p === topP && pCounts[p] > 0) title = "Punisher";
-            else if (p === topV && victimCounts[p] > 0) title = "The Punished";
-            else if (pts >= CONFIG.THRESHOLDS.CENTURION_POINTS) title = "Centurion";
-            return { name: p, pts, title, icon: (curP === p && pts > 0) ? (STREAK_TIERS[Math.min(curS, 6)]?.icon || '') : '' };
-          }).sort((a,b)=>b.pts-a.pts),
-          lifetime: Object.entries(lTotals).sort((a,b)=>b[1]-a[1]),
-          log: rows.reverse().slice(0,10)
+        let allTimeHigh = { player: 'N/A', points: 0 };
+        const lastMonthDate = new Date(thisYear, thisMonth - 1, 1);
+        const lastMonthKey = `${lastMonthDate.getFullYear()}-${lastMonthDate.getMonth()}`;
+        let lastMonthWinner = null, lastMonthTop = -Infinity;
+
+        Object.keys(historyMap).forEach(m => Object.entries(historyMap[m]).forEach(([p, pts]) => {
+          if (pts > allTimeHigh.points) allTimeHigh = { player: p, points: pts };
+          if (m === lastMonthKey && pts > lastMonthTop) { lastMonthTop = pts; lastMonthWinner = p; }
+        }));
+
+        const monthlyScores = Object.keys(monthlyTotals).map(p => {
+          let title = '';
+          const maxD = Math.max(...Object.entries(dailyTotals).filter(([k])=>k.startsWith(p+'|')).map(([_,v])=>v), 0);
+          const maxS = getPlayerMaxStreak(rows, p, thisMonth, thisYear);
+          
+          if (maxS >= CONFIG.THRESHOLDS.JUGGERNAUT_STREAK) title = 'Juggernaut';
+          else if (p === currentGrimReaper) title = 'Grim Reaper';
+          else if ((monthlyStreaksBrokenBy[p] || 0) >= CONFIG.THRESHOLDS.GODSLAYER_KILLS) title = 'Godslayer';
+          else if (p === topPunisher) title = 'Punisher';
+          else if (monthlyTotals[p] >= CONFIG.THRESHOLDS.CENTURION_POINTS) title = 'Centurion';
+          else if (maxD >= CONFIG.THRESHOLDS.OVERACHIEVER_DAILY) title = 'Overachiever';
+
+          return { 
+            player: p, points: monthlyTotals[p], title, isLastMonthWinner: (p === lastMonthWinner),
+            icon: (currentStreakPlayer === p && !lastScoreWasNegative[p]) ? STREAK_TIERS[Math.min(currentStreakCount, 6)].icon : (lastScoreWasNegative[p] ? '💀' : '')
+          };
+        }).sort((a,b) => b.points - a.points);
+
+        return { 
+          players: [...playersSet].sort(), allTimeHigh, monthlyScores,
+          lifetime: Object.entries(lifetimeTotals).map(([p, pts]) => ({player:p, points:pts})).sort((a,b)=>b.points-a.points),
+          log: logEntries.reverse().slice(0, 20)
         };
       }
 
       function renderUI(data) {
-        const opts = '<option value="">--Select--</option>' + data.players.map(p => `<option value="${p}">${p}</option>`).join('');
-        document.getElementById('player').innerHTML = opts; document.getElementById('targetPlayer').innerHTML = opts;
-        document.getElementById('leaderboard').innerHTML = '<h2>📅 Monthly</h2><table>' + data.monthly.map(r => `<tr><td>${r.icon} ${r.name} <span class="achievement" title="${achievementDescs[r.title]||''}">${r.title}</span></td><td>${r.pts}</td></tr>`).join('') + '</table>';
-        document.getElementById('lifetime').innerHTML = '<h2>🌟 Lifetime</h2><table>' + data.lifetime.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('') + '</table>';
+        const pSelect = document.getElementById('player');
+        const tSelect = document.getElementById('targetPlayer');
+        const currentP = pSelect.value;
+        const currentT = tSelect.value;
+        
+        const optionsHtml = '<option value="">--Select Player--</option>' + 
+          data.players.map(p => `<option value="${p}">${p}</option>`).join('');
+        
+        pSelect.innerHTML = optionsHtml;
+        tSelect.innerHTML = optionsHtml;
+        
+        pSelect.value = currentP;
+        tSelect.value = currentT;
+
+        if (data.allTimeHigh.points > 0) {
+          document.getElementById('allTimeHigh').innerHTML = `<div class="high-score-box">🌟 All-Time Record: ${data.allTimeHigh.player} (${data.allTimeHigh.points} pts)</div>`;
+        }
+
+        let mHtml = '<h2>📅 Monthly Scores</h2><table><tr><th>Player</th><th>Points</th></tr>';
+        data.monthlyScores.forEach(r => {
+          const titleHtml = r.title ? `<span class="achievement" title="${achievementDescriptions[r.title] || ''}">${r.title}</span>` : '';
+          mHtml += `<tr><td>${r.icon} ${r.player}${r.isLastMonthWinner ? ' 🏆' : ''}${titleHtml}</td><td>${r.points}</td></tr>`;
+        });
+        document.getElementById('leaderboard').innerHTML = mHtml + '</table>';
+
+        let lHtml = '<h2>🌟 Lifetime Scores</h2><table><tr><th>Player</th><th>Points</th></tr>';
+        data.lifetime.forEach(r => lHtml += `<tr><td>${r.player}</td><td>${r.points}</td></tr>`);
+        document.getElementById('lifetime').innerHTML = lHtml + '</table>';
+
+        let logHtml = '<h2>📰 Recent Scores</h2><ul style="list-style:none;padding:0">';
+        data.log.forEach(l => logHtml += `<li>${l.text}</li>`);
+        document.getElementById('log').innerHTML = logHtml + '</ul>';
+        setupTooltips();
       }
 
-      function playAnim(u) { const d = document.getElementById('streakAnimation'); document.getElementById('streakGif').src=u; d.style.display="flex"; setTimeout(()=>d.style.display="none", 5000); }
-      function showToast() { const t = document.getElementById('toast'); t.style.visibility='visible'; setTimeout(()=>t.style.visibility='hidden', 2000); }
+      function getPlayerMaxStreak(rows, player, m, y) {
+        let max = 0, curr = 0;
+        rows.forEach(([ts, p, pts, tsRaw, scorer]) => {
+          if (ts.getMonth() !== m || ts.getFullYear() !== y) return;
+          // Streak is owned by the Scorer
+          if (scorer === player) { curr++; if (curr > max) max = curr; }
+          else { curr = 0; }
+        });
+        return max;
+      }
+
+      function createLogEntry(date, msg, isNeg, color) {
+        const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        let style = isNeg ? "color:red; font-weight:bold;" : (color ? `color:${color}; font-weight:bold;` : "");
+        return { text: `<span style="${style}">[${time}] ${msg}</span>` };
+      }
+
+      function showToast() { const t = document.getElementById('toast'); t.style.visibility = 'visible'; setTimeout(()=>t.style.visibility='hidden', 2000); }
+      
+      function playStreakAnimation(url) {
+        const div = document.getElementById('streakAnimation');
+        const img = document.getElementById('streakGif');
+        img.src = url; div.style.display = "flex";
+        setTimeout(() => { div.style.display = "none"; img.src = ""; }, 7000);
+      }
+
+      function checkForStreakAnimation(logText) {
+        const match = logText.match(/\((\d+) streak\)/);
+        if (match) playStreakAnimation(streakGifs[Math.min(Number(match[1]), 6)]);
+      }
+
+      function setupTooltips() {
+        document.querySelectorAll('.achievement').forEach(el => {
+          el.onclick = (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.touch-tooltip').forEach(t => t.remove());
+            const tt = document.createElement('div');
+            tt.className = 'touch-tooltip';
+            tt.textContent = el.getAttribute('title');
+            document.body.appendChild(tt);
+            const r = el.getBoundingClientRect();
+            tt.style.left = r.left + 'px'; tt.style.top = r.bottom + 5 + 'px';
+            document.addEventListener('click', () => tt.remove(), { once: true });
+          };
+        });
+      }
     </script>
   </body>
 </html>
