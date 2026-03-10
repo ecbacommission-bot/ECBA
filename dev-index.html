@@ -17,7 +17,7 @@
         .transition-all { transition: all 0.3s ease; }
     </style>
 </head>
-<body class="bg-base-300 min-h-screen pb-32 text-slate-200">
+<body class="bg-base-300 min-h-screen pb-20 text-slate-200">
 
 <div id="app" v-cloak class="container mx-auto p-4 max-w-5xl">
     
@@ -30,17 +30,17 @@
         
         <div class="lg:col-span-4 card bg-base-100 shadow-2xl border border-white/5 h-fit">
             <div class="card-body p-6 gap-4">
-                <h2 class="text-center text-warning/40 uppercase text-[10px] tracking-widest mb-2 font-medium">Submit Entry</h2>
+                <h2 class="text-center text-warning uppercase text-[10px] tracking-widest mb-2 font-bold">Submit Entry</h2>
                 
                 <div class="form-control">
                     <select v-model="form.scorer" class="select select-bordered select-warning w-full text-center font-bold">
                         <option value="">-- Choose Player --</option>
                         <option v-for="p in players" :key="p" :value="p">{{ p }}</option>
                     </select>
-                    <input v-model="form.newPlayer" type="text" placeholder="OR Add New Name" class="input input-sm input-bordered mt-2 text-center uppercase text-[10px]" />
+                    <input v-model="form.newPlayer" type="text" placeholder="OR Add New Name" class="input input-sm input-bordered mt-2 text-center uppercase text-[10px] placeholder:text-warning text-warning font-bold" />
                 </div>
 
-                <div class="divider my-0 text-warning/40 uppercase text-[10px] tracking-widest font-medium">SCORE</div>
+                <div class="divider my-0 text-warning uppercase text-[10px] tracking-widest font-bold">SCORE</div>
 
                 <div class="flex items-center justify-center gap-4 py-2">
                     <button @click="changePoints(-1)" class="btn btn-circle btn-outline btn-warning text-xl">−</button>
@@ -84,7 +84,7 @@
                     </div>
 
                     <table v-if="view === 'monthly'" class="table table-zebra table-sm font-medium">
-                        <thead class="text-warning/40 uppercase text-[10px] tracking-widest">
+                        <thead class="text-warning uppercase text-[10px] tracking-widest">
                             <tr><th>Rank</th><th>Player</th><th class="text-right">Points</th></tr>
                         </thead>
                         <tbody>
@@ -102,7 +102,6 @@
                                 </td>
                                 <td class="text-right font-black text-warning text-lg tracking-tighter">{{ r.pts }}</td>
                             </tr>
-                            <tr v-if="monthly.length === 0"><td colspan="3" class="text-center py-20 opacity-30 italic text-xs">No entries for this month yet.</td></tr>
                         </tbody>
                     </table>
 
@@ -133,7 +132,7 @@
                     </div>
 
                     <table v-if="view === 'lifetime'" class="table table-zebra table-sm font-medium">
-                        <thead class="text-warning/40 uppercase text-[10px] tracking-widest">
+                        <thead class="text-warning uppercase text-[10px] tracking-widest">
                             <tr><th>Player</th><th class="text-right">All-Time Pts</th></tr>
                         </thead>
                         <tbody>
@@ -162,7 +161,7 @@
         <img :src="overlay.gif" class="max-w-full max-h-full rounded-[2rem] border-4 border-warning shadow-[0_0_100px_rgba(255,204,0,0.4)]" />
     </div>
 
-    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[400]">
+    <div class="mt-12 flex justify-center">
         <a href="." class="block transition-all hover:scale-110 active:scale-95">
             <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" 
                  alt="ECBA Logo" 
@@ -245,7 +244,12 @@
                         const mk = `${date.getFullYear()}-${date.getMonth()}`;
 
                         pSet.add(player); pSet.add(scorer);
-                        lTot[player] = (lTot[player] || 0) + pts;
+
+                        // Lifetime Logic: Aggregates ALL positive points ever scored. Punishments (negative) are ignored.
+                        if (pts > 0) {
+                            lTot[scorer] = (lTot[scorer] || 0) + pts;
+                        }
+
                         if (!hist[mk]) hist[mk] = {};
                         hist[mk][player] = (hist[mk][player] || 0) + pts;
 
@@ -327,6 +331,8 @@
                     allTimeHigh.value = high;
                     players.value = [...pSet].sort();
                     logs.value = logArr.slice(0, 20);
+                    // Updated Lifetime display
+                    lifetime.value = Object.entries(lTot).map(([name, pts]) => ({ name, pts })).sort((a,b)=>b.pts-a.pts);
 
                     const lastEntry = rows[rows.length - 1];
                     if (lastEntry && (Date.now() - lastEntry.timestamp)/1000 < 10) {
