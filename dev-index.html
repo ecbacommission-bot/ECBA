@@ -10,7 +10,6 @@
     <style>
         [v-cloak] { display: none; }
         .log-entry { font-family: 'JetBrains Mono', monospace; border-left-width: 4px; padding-left: 0.75rem; }
-        /* Adjusted achievement-badge: Transparent background, colored text */
         .achievement-badge { @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px] bg-transparent text-warning p-0; }
         .transition-all { transition: all 0.3s ease; }
     </style>
@@ -102,7 +101,6 @@
                     </table>
 
                     <div v-if="view === 'hall'" class="p-4 space-y-6">
-                        
                         <div v-if="allTimeHigh.points > 0" class="bg-gradient-to-br from-warning/20 to-transparent p-6 rounded-2xl border border-warning/30 flex items-center justify-between shadow-inner">
                             <div>
                                 <h3 class="text-xs font-black uppercase text-warning tracking-[0.2em] mb-1">🌟 All-Time High Score</h3>
@@ -162,16 +160,6 @@
         <img :src="overlay.gif" class="max-w-full max-h-full rounded-[2rem] border-4 border-warning shadow-[0_0_100px_rgba(255,204,0,0.4)]" />
     </div>
 
-    <div class="fixed bottom-4 right-4 flex items-center gap-2 bg-base-100/50 backdrop-blur-md p-2 rounded-lg border border-white/10 select-none">
-        <div class="flex flex-col items-end">
-            <span class="text-[8px] font-bold opacity-40 uppercase tracking-tighter leading-none">Endpoint Config</span>
-            <span class="text-[10px] font-black text-warning tracking-tighter">SLAM-JAM-NODE-01</span>
-        </div>
-        <div class="w-8 h-8 rounded bg-warning flex items-center justify-center text-black font-black text-xs shadow-lg shadow-warning/20">
-            SJ
-        </div>
-    </div>
-
 </div>
 
 <script type="module">
@@ -196,14 +184,13 @@
 
             const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
             
-            // Added Tooltip Definitions
             const TOOLTIPS = {
-                "Juggernaut": "Achieved a massive scoring streak of 10+",
-                "Godslayer": "Ended a Godlike streak 3 or more times",
-                "Punisher": "Most punishments delivered this season",
-                "The Punished": "Most punishment points received this season",
-                "Centurion": "Reached 100 total points this season",
-                "Overachiever": "Scored 25+ points in a single day"
+                "Juggernaut": "Maintained a scoring streak of 10 or more.",
+                "Godslayer": "Ended a Godlike streak (6+) three or more times.",
+                "Punisher": "Handed out the most punishments this season.",
+                "The Punished": "Received the most negative points this season.",
+                "Centurion": "Hit the 100-point milestone.",
+                "Overachiever": "Scored 25 or more points in a single day."
             };
 
             const TIERS = {
@@ -291,11 +278,9 @@
                         if (mk === currentMonthKey) return; 
                         const scores = Object.entries(hist[mk]);
                         if (scores.length === 0) return;
-                        
                         const [y, m] = mk.split('-');
                         const label = new Date(y, m).toLocaleString('default', { month: 'long', year: 'numeric' });
                         const top = scores.sort((a,b) => b[1] - a[1])[0];
-                        
                         fame.push({ monthKey: mk, label, winner: top[0], pts: top[1], sortKey: parseInt(y)*12 + parseInt(m) });
                     });
                     hallOfFame.value = fame.sort((a,b) => b.sortKey - a.sortKey);
@@ -321,9 +306,7 @@
 
                     let high = { player: 'N/A', points: 0 };
                     Object.keys(hist).forEach(k => {
-                        Object.entries(hist[k]).forEach(([p,pts]) => { 
-                            if (pts > high.points) high = { player: p, points: pts }; 
-                        });
+                        Object.entries(hist[k]).forEach(([p,pts]) => { if (pts > high.points) high = { player: p, points: pts }; });
                     });
                     allTimeHigh.value = high;
 
