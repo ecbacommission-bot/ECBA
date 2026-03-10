@@ -10,8 +10,11 @@
     <style>
         [v-cloak] { display: none; }
         .log-entry { font-family: 'JetBrains Mono', monospace; border-left-width: 4px; padding-left: 0.75rem; }
-        /* achievements use title color (text-warning) */
-        .achievement-badge { @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px] bg-transparent text-warning p-0; }
+        /* Achievements matched to exact Warning Yellow #FBBD23 */
+        .achievement-badge { 
+            @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px] bg-transparent p-0;
+            color: #FBBD23; 
+        }
         .transition-all { transition: all 0.3s ease; }
     </style>
 </head>
@@ -28,7 +31,7 @@
         
         <div class="lg:col-span-4 card bg-base-100 shadow-2xl border border-white/5 h-fit">
             <div class="card-body p-6 gap-4">
-                <h2 class="text-center font-bold text-[10px] uppercase opacity-30 tracking-[0.2em] mb-2">Submit Entry</h2>
+                <h2 class="text-center text-warning/40 uppercase text-[10px] tracking-widest mb-2 font-medium">Submit Entry</h2>
                 
                 <div class="form-control">
                     <select v-model="form.scorer" class="select select-bordered select-warning w-full text-center font-bold">
@@ -38,7 +41,7 @@
                     <input v-model="form.newPlayer" type="text" placeholder="OR Add New Name" class="input input-sm input-bordered mt-2 text-center uppercase text-[10px]" />
                 </div>
 
-                <div class="divider my-0 opacity-10 font-bold text-[10px]">SCORE</div>
+                <div class="divider my-0 text-warning/40 uppercase text-[10px] tracking-widest font-medium">SCORE</div>
 
                 <div class="flex items-center justify-center gap-4 py-2">
                     <button @click="changePoints(-1)" class="btn btn-circle btn-outline btn-warning text-xl">−</button>
