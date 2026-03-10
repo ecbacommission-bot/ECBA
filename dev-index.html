@@ -95,9 +95,11 @@
                                 <td class="opacity-20 font-bold italic">{{ idx + 1 }}</td>
                                 <td :title="getTooltip(r.title)">
                                     <div class="flex items-center gap-3">
-                                        <span class="text-2xl leading-none">{{ r.icon }}</span>
+                                        <div class="flex items-center gap-1 min-w-[1.5rem] justify-center">
+                                            <span v-if="r.isSkulled" class="text-lg leading-none">💀</span>
+                                            <span v-else-if="r.icon" class="text-2xl leading-none">{{ r.icon }}</span>
+                                        </div>
                                         <span class="font-black text-sm tracking-tight uppercase">{{ r.name }}</span>
-                                        <span v-if="r.isSkulled" class="text-lg">💀</span>
                                         <span v-if="r.title" class="achievement-badge">{{ r.title }}</span>
                                     </div>
                                 </td>
@@ -223,8 +225,8 @@
                     if (!data) return;
                     
                     const pSet = new Set(), mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
-                    const lastAction = {}, reaperVictims = {}; 
-                    let curP = null, curS = 0;
+                    const lastAction = {}, playerStreaks = {}; 
+                    let globalCurP = null, globalCurS = 0;
 
                     const rows = Object.values(data);
                     rows.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
@@ -245,43 +247,46 @@
                             mTot[player] = (mTot[player] || 0) + pts;
                             dTot[player+date.toDateString()] = (dTot[player+date.toDateString()] || 0) + pts;
                             
-                            // Skull Logic Tracker
                             if (pts < 0) {
+                                // Punishment Logic: ruined victim's streak
                                 lastAction[player] = 'punished';
+                                playerStreaks[player] = 0;
                                 pCnt[scorer] = (pCnt[scorer] || 0) + 1;
                                 vCnt[player] = (vCnt[player] || 0) + Math.abs(pts);
-                                // Reaper logic: keep track of who the scorer currently has under a skull
-                                if(!reaperVictims[scorer]) reaperVictims[scorer] = new Set();
-                                reaperVictims[scorer].add(player);
+                                // Global streak logic for UI: if global current player is victim, reset global
+                                if (globalCurP === player) { globalCurP = null; globalCurS = 0; }
                             } else {
                                 lastAction[player] = 'scored';
-                                // If they scored, they are no longer a victim for ANY reaper
-                                Object.values(reaperVictims).forEach(set => set.delete(player));
                             }
 
-                            if (curP === scorer && pts > 0) curS++; 
-                            else if (pts > 0) {
-                                if (curP && curS >= CONFIG.GODLIKE) slay[scorer] = (slay[scorer] || 0) + 1;
-                                curP = scorer; curS = 1;
+                            // Streak Processing
+                            if (pts > 0) {
+                                if (globalCurP === scorer) {
+                                    globalCurS++;
+                                } else {
+                                    if (globalCurP && globalCurS >= CONFIG.GODLIKE) slay[scorer] = (slay[scorer] || 0) + 1;
+                                    globalCurP = scorer; globalCurS = 1;
+                                }
+                                mStr[scorer] = Math.max(mStr[scorer] || 0, globalCurS);
                             }
-                            if(pts > 0) mStr[scorer] = Math.max(mStr[scorer] || 0, curS);
 
                             const currTotal = mTot[player] || 0;
                             const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                             if (pts < 0) {
                                 logArr.unshift({ time: timeStr, text: `<b>${scorer}</b> punished <b>${player}</b>! (${pts}) (Total ${currTotal})`, isNeg: true });
                             } else {
-                                if (curS >= 2) {
-                                    const t = TIERS[Math.min(curS, 6)];
-                                    logArr.unshift({ time: timeStr, text: `<b>${scorer}</b> scored ${pts} and is ${t.title} (Streak ${curS}, Total ${currTotal}) ${t.icon}`, color: t.color, streak: curS });
+                                if (globalCurS >= 2 && globalCurP === scorer) {
+                                    const t = TIERS[Math.min(globalCurS, 6)];
+                                    logArr.unshift({ time: timeStr, text: `<b>${scorer}</b> scored ${pts} and is ${t.title} (Streak ${globalCurS}, Total ${currTotal}) ${t.icon}`, color: t.color, streak: globalCurS });
                                 } else logArr.unshift({ time: timeStr, text: `<b>${player}</b> scored ${pts}. (Total ${currTotal})` });
                             }
                         }
                     });
 
+                    const currentMonthKey = `${targetY}-${targetM}`;
                     const fame = [];
                     Object.keys(hist).forEach(mk => {
-                        if (mk === `${targetY}-${targetM}`) return;
+                        if (mk === currentMonthKey) return;
                         const scores = Object.entries(hist[mk]);
                         if (scores.length === 0) return;
                         const [y, m] = mk.split('-');
@@ -297,8 +302,6 @@
                     monthly.value = Object.entries(mTot).map(([name, pts]) => {
                         let title = "";
                         const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(name)).map(k=>dTot[k]), 0);
-                        
-                        // Grim Reaper logic: Does this scorer have a skull on EVERY OTHER active player?
                         const otherPlayers = Object.keys(mTot).filter(p => p !== name);
                         const isReaper = otherPlayers.length > 0 && otherPlayers.every(p => lastAction[p] === 'punished');
 
@@ -312,7 +315,7 @@
                         
                         return { 
                             name, pts, title, 
-                            icon: (curP === name && pts > 0) ? TIERS[Math.min(curS, 6)].icon : '',
+                            icon: (globalCurP === name && pts > 0) ? TIERS[Math.min(globalCurS, 6)].icon : '',
                             isSkulled: lastAction[name] === 'punished'
                         };
                     }).sort((a,b)=>b.pts-a.pts);
@@ -326,7 +329,7 @@
                     const lastEntry = rows[rows.length - 1];
                     if (lastEntry && (Date.now() - lastEntry.timestamp)/1000 < 10) {
                         if (lastEntry.points < 0) playAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
-                        else if (curS >= 2) playAnim(TIERS[Math.min(curS, 6)].gif);
+                        else if (globalCurP === lastEntry.scorer && globalCurS >= 2) playAnim(TIERS[Math.min(globalCurS, 6)].gif);
                     }
                 });
             });
