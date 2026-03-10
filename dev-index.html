@@ -10,7 +10,8 @@
     <style>
         [v-cloak] { display: none; }
         .log-entry { font-family: 'JetBrains Mono', monospace; border-left-width: 4px; padding-left: 0.75rem; }
-        .achievement-badge { @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px]; }
+        /* Adjusted achievement-badge: Transparent background, colored text */
+        .achievement-badge { @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px] bg-transparent text-warning p-0; }
         .transition-all { transition: all 0.3s ease; }
     </style>
 </head>
@@ -19,7 +20,6 @@
 <div id="app" v-cloak class="container mx-auto p-4 max-w-5xl">
     
     <header class="text-center py-10">
-        <div class="badge badge-success badge-outline mb-2 uppercase text-[10px] font-bold tracking-widest">● System Live</div>
         <h1 class="text-6xl font-black italic tracking-tighter text-warning uppercase drop-shadow-lg">🏀 ECBA Slam Jam</h1>
         <p class="text-[10px] opacity-30 font-bold tracking-[0.4em] uppercase mt-2">Endpoint Configuration Basketball Authority</p>
     </header>
@@ -88,11 +88,11 @@
                         <tbody>
                             <tr v-for="(r, idx) in monthly" :key="r.name" class="hover">
                                 <td class="opacity-20 font-bold italic">{{ idx + 1 }}</td>
-                                <td>
+                                <td :title="getTooltip(r.title)">
                                     <div class="flex items-center gap-3">
                                         <span class="text-2xl leading-none">{{ r.icon }}</span>
                                         <span class="font-black text-sm tracking-tight uppercase">{{ r.name }}</span>
-                                        <span v-if="r.title" class="achievement-badge bg-warning text-black">{{ r.title }}</span>
+                                        <span v-if="r.title" class="achievement-badge">{{ r.title }}</span>
                                     </div>
                                 </td>
                                 <td class="text-right font-black text-warning text-lg tracking-tighter">{{ r.pts }}</td>
@@ -195,6 +195,17 @@
             const form = vRef({ scorer: '', newPlayer: '', target: '', points: 1 });
 
             const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
+            
+            // Added Tooltip Definitions
+            const TOOLTIPS = {
+                "Juggernaut": "Achieved a massive scoring streak of 10+",
+                "Godslayer": "Ended a Godlike streak 3 or more times",
+                "Punisher": "Most punishments delivered this season",
+                "The Punished": "Most punishment points received this season",
+                "Centurion": "Reached 100 total points this season",
+                "Overachiever": "Scored 25+ points in a single day"
+            };
+
             const TIERS = {
                 2: { icon: '🔥', title: 'ON FIRE!', color: '#fb923c', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
                 3: { icon: '💥', title: 'LEGENDARY!', color: '#facc15', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
@@ -274,7 +285,6 @@
                         }
                     });
 
-                    // Hall of Fame Calculation
                     const currentMonthKey = `${targetYear}-${targetMonth}`;
                     const fame = [];
                     Object.keys(hist).forEach(mk => {
@@ -309,7 +319,6 @@
                         return { name, pts, title, icon: (curP === name && pts > 0) ? TIERS[Math.min(curS, 6)].icon : '' };
                     }).sort((a,b)=>b.pts-a.pts);
 
-                    // Global All-Time High Score
                     let high = { player: 'N/A', points: 0 };
                     Object.keys(hist).forEach(k => {
                         Object.entries(hist[k]).forEach(([p,pts]) => { 
@@ -328,14 +337,13 @@
 
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
             const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
-            
+            const getTooltip = (title) => TOOLTIPS[title] || "Achievement earned!";
+
             const submitScore = async () => {
                 const s = (form.value.scorer || form.value.newPlayer).trim();
                 const pts = form.value.points;
                 let t = pts < 0 ? form.value.target : s;
-                
                 if (!s || (pts < 0 && !t)) return;
-                
                 submitting.value = true;
                 try {
                     await push(fbRef, { player: t, points: pts, scorer: s, timestamp: serverTimestamp() });
@@ -346,7 +354,7 @@
                 submitting.value = false;
             };
 
-            return { view, players, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, overlay, currentSeasonName, submitting, showSuccess };
+            return { view, players, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, overlay, currentSeasonName, submitting, showSuccess, getTooltip };
         }
     }).mount('#app');
 </script>
