@@ -144,10 +144,13 @@
                     </table>
 
                     <ul v-if="view === 'recent'" class="p-4 space-y-2 overflow-y-auto max-h-[500px]">
-                        <li v-for="(entry, i) in logs" :key="i" class="log-entry text-xs bg-base-200/50 rounded-lg border-base-content/10 py-2 pr-2" :style="{ borderLeftColor: entry.color || (entry.isNeg ? '#ff4d4d' : '#333') }">
+                        <li v-for="(entry, i) in logs" :key="i" class="log-entry text-xs bg-base-200/50 rounded-lg border-base-content/10 py-2 pr-2 relative group" :style="{ borderLeftColor: entry.color || (entry.isNeg ? '#ff4d4d' : '#333') }">
                             <div class="flex justify-between items-start mb-1">
                                 <span class="opacity-30 uppercase text-[9px] font-bold tracking-tighter">[{{ entry.time }}]</span>
-                                <span v-if="entry.streak" class="badge badge-xs badge-ghost opacity-50 font-bold italic">Streak: {{ entry.streak }}</span>
+                                <div class="flex items-center gap-2">
+                                    <span v-if="entry.streak" class="badge badge-xs badge-ghost opacity-50 font-bold italic">Streak: {{ entry.streak }}</span>
+                                    <button v-if="isAdmin" @click="deleteEntry(entry.id)" class="btn btn-ghost btn-xs text-error opacity-0 group-hover:opacity-100 px-1 min-h-0 h-4">✕</button>
+                                </div>
                             </div>
                             <span class="leading-relaxed" v-html="entry.text"></span>
                         </li>
@@ -173,7 +176,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, remove, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const { createApp, ref: vRef, onMounted, computed } = Vue;
 
@@ -190,6 +193,12 @@
             const allTimeHigh = vRef({ player: 'N/A', points: 0 });
             const overlay = vRef({ show: false, gif: '' });
             const form = vRef({ scorer: '', newPlayer: '', target: '', points: 1 });
+
+            // Admin Logic: Check URL for ?admin=true
+            const isAdmin = computed(() => {
+                const params = new URLSearchParams(window.location.search);
+                return params.get('admin') === 'true';
+            });
 
             const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
             const TOOLTIPS = {
@@ -227,27 +236,34 @@
             onMounted(() => {
                 onValue(fbRef, (snap) => {
                     const data = snap.val();
-                    if (!data) return;
+                    if (!data) {
+                        players.value = []; logs.value = []; monthly.value = []; lifetime.value = [];
+                        return;
+                    }
                     const pSet = new Set(), mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
                     const lastAction = {}; 
                     let globalCurP = null, globalCurS = 0;
-                    const rows = Object.values(data);
-                    rows.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+                    const sortedData = Object.entries(data).sort((a,b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
                     const now = new Date(), targetM = now.getMonth(), targetY = now.getFullYear();
-                    rows.forEach((d) => {
+
+                    sortedData.forEach(([id, d]) => {
                         const date = new Date(d.timestamp);
                         const player = d.player, scorer = d.scorer || d.player, pts = Number(d.points || 0);
                         const isM = (date.getMonth() === targetM && date.getFullYear() === targetY);
                         const mk = `${date.getFullYear()}-${date.getMonth()}`;
+
                         pSet.add(player); pSet.add(scorer);
                         if (pts > 0) lTot[scorer] = (lTot[scorer] || 0) + pts;
                         if (!hist[mk]) hist[mk] = {};
                         hist[mk][player] = (hist[mk][player] || 0) + pts;
+
                         if (isM) {
                             mTot[player] = (mTot[player] || 0) + pts;
                             dTot[player+date.toDateString()] = (dTot[player+date.toDateString()] || 0) + pts;
                             const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                             const currTotal = mTot[player] || 0;
+
                             if (pts < 0) {
                                 let brokenText = "";
                                 if (globalCurP === player && globalCurS >= 2) {
@@ -257,7 +273,7 @@
                                 lastAction[player] = 'punished';
                                 pCnt[scorer] = (pCnt[scorer] || 0) + 1;
                                 vCnt[player] = (vCnt[player] || 0) + Math.abs(pts);
-                                logArr.unshift({ time: timeStr, text: `<b>${scorer}</b> punished <b>${player}</b>! (${pts}) (Total ${currTotal})${brokenText}`, isNeg: true });
+                                logArr.unshift({ id, time: timeStr, text: `<b>${scorer}</b> punished <b>${player}</b>! (${pts}) (Total ${currTotal})${brokenText}`, isNeg: true });
                             } else {
                                 lastAction[player] = 'scored';
                                 if (globalCurP === scorer) {
@@ -269,25 +285,22 @@
                                 mStr[scorer] = Math.max(mStr[scorer] || 0, globalCurS);
                                 if (globalCurS >= 2 && globalCurP === scorer) {
                                     const t = TIERS[Math.min(globalCurS, 6)];
-                                    logArr.unshift({ time: timeStr, text: `<b>${scorer}</b> scored ${pts} and is ${t.title} (Streak ${globalCurS}, Total ${currTotal}) ${t.icon}`, color: t.color, streak: globalCurS });
-                                } else logArr.unshift({ time: timeStr, text: `<b>${player}</b> scored ${pts}. (Total ${currTotal})` });
+                                    logArr.unshift({ id, time: timeStr, text: `<b>${scorer}</b> scored ${pts} and is ${t.title} (Streak ${globalCurS}, Total ${currTotal}) ${t.icon}`, color: t.color, streak: globalCurS });
+                                } else logArr.unshift({ id, time: timeStr, text: `<b>${player}</b> scored ${pts}. (Total ${currTotal})` });
                             }
                         }
                     });
-                    const currentMonthKey = `${targetY}-${targetM}`;
-                    const fame = [];
-                    Object.keys(hist).forEach(mk => {
-                        if (mk === currentMonthKey) return;
+
+                    hallOfFame.value = Object.keys(hist).filter(mk => mk !== `${targetY}-${targetM}`).map(mk => {
                         const scores = Object.entries(hist[mk]);
-                        if (scores.length === 0) return;
                         const [y, m] = mk.split('-');
-                        const label = new Date(y, m).toLocaleString('default', { month: 'long', year: 'numeric' });
                         const top = scores.sort((a,b) => b[1] - a[1])[0];
-                        fame.push({ monthKey: mk, label, winner: top[0], pts: top[1], sortKey: parseInt(y)*12 + parseInt(m) });
-                    });
-                    hallOfFame.value = fame.sort((a,b) => b.sortKey - a.sortKey);
+                        return { monthKey: mk, label: new Date(y, m).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: top[0], pts: top[1], sortKey: parseInt(y)*12 + parseInt(m) };
+                    }).sort((a,b) => b.sortKey - a.sortKey);
+
                     const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
                     const topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
+
                     monthly.value = Object.entries(mTot).map(([name, pts]) => {
                         let title = "";
                         const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(name)).map(k=>dTot[k]), 0);
@@ -300,19 +313,17 @@
                         else if (name === topV && vCnt[name] > 0) title = "The Punished";
                         else if (pts >= CONFIG.CENTURION) title = "Centurion";
                         else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
-                        return { 
-                            name, pts, title, 
-                            icon: (globalCurP === name) ? TIERS[Math.min(globalCurS, 6)]?.icon : '',
-                            isSkulled: lastAction[name] === 'punished'
-                        };
+                        return { name, pts, title, icon: (globalCurP === name) ? TIERS[Math.min(globalCurS, 6)]?.icon : '', isSkulled: lastAction[name] === 'punished' };
                     }).sort((a,b)=>b.pts-a.pts);
+
                     let high = { player: 'N/A', points: 0 };
                     Object.keys(hist).forEach(k => Object.entries(hist[k]).forEach(([p,pts]) => { if (pts > high.points) high = { player: p, points: pts }; }));
                     allTimeHigh.value = high;
                     players.value = [...pSet].sort();
                     logs.value = logArr.slice(0, 20);
                     lifetime.value = Object.entries(lTot).map(([name, pts]) => ({ name, pts })).sort((a,b)=>b.pts-a.pts);
-                    const lastEntry = rows[rows.length - 1];
+
+                    const lastEntry = sortedData[sortedData.length - 1]?.[1];
                     if (lastEntry && (Date.now() - lastEntry.timestamp)/1000 < 10) {
                         if (lastEntry.points < 0) playAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
                         else if (globalCurP === lastEntry.scorer && globalCurS >= 2) playAnim(TIERS[Math.min(globalCurS, 6)].gif);
@@ -323,6 +334,7 @@
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
             const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
             const getTooltip = (title) => TOOLTIPS[title] || "Achievement earned!";
+            
             const submitScore = async () => {
                 const s = (form.value.scorer || form.value.newPlayer).trim();
                 const pts = form.value.points;
@@ -338,7 +350,13 @@
                 submitting.value = false;
             };
 
-            return { view, players, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, overlay, currentSeasonName, submitting, showSuccess, getTooltip };
+            const deleteEntry = async (id) => {
+                if(confirm("Permanently delete this score entry?")) {
+                    try { await remove(ref(fbDb, `scores/${id}`)); } catch (e) { console.error(e); }
+                }
+            };
+
+            return { view, players, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, deleteEntry, overlay, currentSeasonName, submitting, showSuccess, getTooltip, isAdmin };
         }
     }).mount('#app');
 </script>
