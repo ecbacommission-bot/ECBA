@@ -15,6 +15,15 @@
             color: #FBBD23; 
         }
         .transition-all { transition: all 0.3s ease; }
+        
+        /* Score Flash Animation */
+        @keyframes flash-score {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); color: white; }
+        }
+        .animate-score-flash {
+            animation: flash-score 0.5s ease-in-out 3;
+        }
     </style>
 </head>
 <body class="bg-base-300 min-h-screen pb-20 text-slate-200">
@@ -85,7 +94,11 @@
 
                     <table v-if="view === 'monthly'" class="table table-zebra table-sm font-medium">
                         <thead class="text-warning uppercase text-[10px] tracking-widest">
-                            <tr><th>Rank</th><th>Player</th><th class="text-right">Points</th></tr>
+                            <tr>
+                                <th>Rank</th>
+                                <th class="pl-8">Player</th>
+                                <th class="text-right">Points</th>
+                            </tr>
                         </thead>
                         <tbody>
                             <tr v-for="(r, idx) in monthly" :key="r.name" class="hover">
@@ -100,7 +113,9 @@
                                         <span v-if="r.title" class="achievement-badge">{{ r.title }}</span>
                                     </div>
                                 </td>
-                                <td class="text-right font-black text-warning text-lg tracking-tighter">{{ r.pts }}</td>
+                                <td class="text-right font-black text-warning text-lg tracking-tighter" :class="{'animate-score-flash': r.justUpdated}">
+                                    {{ r.pts }}
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -240,7 +255,7 @@
                         return;
                     }
                     const pSet = new Set(), mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
-                    const lastAction = {}; 
+                    const lastAction = {}, lastUpdatedPlayers = new Set(); 
                     let globalCurP = null, globalCurS = 0;
 
                     const sortedData = Object.entries(data).sort((a,b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
@@ -258,6 +273,9 @@
                         hist[mk][player] = (hist[mk][player] || 0) + pts;
 
                         if (isM) {
+                            // Flash logic: Check if entry is very recent
+                            if (Date.now() - d.timestamp < 5000) lastUpdatedPlayers.add(player);
+
                             mTot[player] = (mTot[player] || 0) + pts;
                             dTot[player+date.toDateString()] = (dTot[player+date.toDateString()] || 0) + pts;
                             const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
@@ -312,7 +330,12 @@
                         else if (name === topV && vCnt[name] > 0) title = "The Punished";
                         else if (pts >= CONFIG.CENTURION) title = "Centurion";
                         else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
-                        return { name, pts, title, icon: (globalCurP === name) ? TIERS[Math.min(globalCurS, 6)]?.icon : '', isSkulled: lastAction[name] === 'punished' };
+                        return { 
+                            name, pts, title, 
+                            icon: (globalCurP === name) ? TIERS[Math.min(globalCurS, 6)]?.icon : '', 
+                            isSkulled: lastAction[name] === 'punished',
+                            justUpdated: lastUpdatedPlayers.has(name)
+                        };
                     }).sort((a,b)=>b.pts-a.pts);
 
                     let high = { player: 'N/A', points: 0 };
@@ -343,6 +366,8 @@
                 try {
                     await push(fbRef, { player: t, points: pts, scorer: s, timestamp: serverTimestamp() });
                     showSuccess.value = true;
+                    // Force Monthly view on submit
+                    view.value = 'monthly';
                     form.value = { scorer: '', newPlayer: '', target: '', points: 1 };
                     setTimeout(() => showSuccess.value = false, 2000);
                 } catch (e) { console.error(e); }
