@@ -10,7 +10,6 @@
     <style>
         [v-cloak] { display: none; }
         .log-entry { font-family: 'JetBrains Mono', monospace; border-left-width: 4px; padding-left: 0.75rem; }
-        /* Achievements matched to exact Warning Yellow #FBBD23 */
         .achievement-badge { 
             @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px] bg-transparent p-0;
             color: #FBBD23; 
@@ -23,6 +22,9 @@
 <div id="app" v-cloak class="container mx-auto p-4 max-w-5xl">
     
     <header class="text-center py-10">
+        <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" 
+             alt="ECBA Logo" 
+             class="w-24 h-24 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(251,189,35,0.3)]">
         <h1 class="text-6xl font-black italic tracking-tighter text-warning uppercase drop-shadow-lg">🏀 ECBA Slam Jam</h1>
         <p class="text-[10px] opacity-30 font-bold tracking-[0.4em] uppercase mt-2">Endpoint Configuration Basketball Authority</p>
     </header>
@@ -95,6 +97,7 @@
                                     <div class="flex items-center gap-3">
                                         <span class="text-2xl leading-none">{{ r.icon }}</span>
                                         <span class="font-black text-sm tracking-tight uppercase">{{ r.name }}</span>
+                                        <span v-if="r.isSkulled" class="text-lg">💀</span>
                                         <span v-if="r.title" class="achievement-badge">{{ r.title }}</span>
                                     </div>
                                 </td>
@@ -115,9 +118,7 @@
                                 <span class="text-4xl font-black text-warning">{{ allTimeHigh.points }}</span>
                             </div>
                         </div>
-
                         <div class="divider text-warning font-bold text-[10px] tracking-widest">PAST CHAMPIONS</div>
-
                         <div class="space-y-3">
                             <div v-for="h in hallOfFame" :key="h.monthKey" class="flex items-center justify-between bg-base-200/50 p-4 rounded-xl border border-white/5 transition-all hover:bg-base-200">
                                 <div>
@@ -130,7 +131,6 @@
                                 </div>
                             </div>
                         </div>
-                        <div v-if="hallOfFame.length === 0" class="text-center py-10 opacity-30 italic text-xs">The history books are currently empty.</div>
                     </div>
 
                     <table v-if="view === 'lifetime'" class="table table-zebra table-sm font-medium">
@@ -154,7 +154,6 @@
                             <span class="leading-relaxed" v-html="entry.text"></span>
                         </li>
                     </ul>
-
                 </div>
             </div>
         </div>
@@ -163,7 +162,6 @@
     <div v-if="overlay.show" @click="overlay.show = false" class="fixed inset-0 bg-black/90 z-[500] flex items-center justify-center p-4 backdrop-blur-xl cursor-pointer">
         <img :src="overlay.gif" class="max-w-full max-h-full rounded-[2rem] border-4 border-warning shadow-[0_0_100px_rgba(255,204,0,0.4)]" />
     </div>
-
 </div>
 
 <script type="module">
@@ -187,14 +185,14 @@
             const form = vRef({ scorer: '', newPlayer: '', target: '', points: 1 });
 
             const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
-            
             const TOOLTIPS = {
                 "Juggernaut": "Maintained a scoring streak of 10 or more.",
                 "Godslayer": "Ended a Godlike streak (6+) three or more times.",
                 "Punisher": "Handed out the most punishments this season.",
                 "The Punished": "Received the most negative points this season.",
                 "Centurion": "Hit the 100-point milestone.",
-                "Overachiever": "Scored 25 or more points in a single day."
+                "Overachiever": "Scored 25 or more points in a single day.",
+                "Grim Reaper": "Simultaneously placed a skull on every other active player."
             };
 
             const TIERS = {
@@ -205,9 +203,7 @@
                 6: { icon: '🌌', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
             };
 
-            const currentSeasonName = computed(() => {
-                return new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
-            });
+            const currentSeasonName = computed(() => new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
 
             const fbApp = initializeApp({
                 apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g",
@@ -227,45 +223,52 @@
                     if (!data) return;
                     
                     const pSet = new Set(), mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
+                    const lastAction = {}, reaperVictims = {}; 
                     let curP = null, curS = 0;
 
                     const rows = Object.values(data);
                     rows.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
-
-                    const now = new Date();
-                    const targetMonth = now.getMonth();
-                    const targetYear = now.getFullYear();
+                    const now = new Date(), targetM = now.getMonth(), targetY = now.getFullYear();
 
                     rows.forEach((d) => {
                         const date = new Date(d.timestamp);
-                        const player = d.player;
-                        const scorer = d.scorer || d.player;
-                        const pts = Number(d.points || 0);
-                        
-                        const isM = (date.getMonth() === targetMonth && date.getFullYear() === targetYear);
-                        const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+                        const player = d.player, scorer = d.scorer || d.player, pts = Number(d.points || 0);
+                        const isM = (date.getMonth() === targetM && date.getFullYear() === targetY);
+                        const mk = `${date.getFullYear()}-${date.getMonth()}`;
 
                         pSet.add(player); pSet.add(scorer);
                         lTot[player] = (lTot[player] || 0) + pts;
-                        
-                        if (!hist[monthKey]) hist[monthKey] = {};
-                        hist[monthKey][player] = (hist[monthKey][player] || 0) + pts;
+                        if (!hist[mk]) hist[mk] = {};
+                        hist[mk][player] = (hist[mk][player] || 0) + pts;
 
                         if (isM) {
                             mTot[player] = (mTot[player] || 0) + pts;
                             dTot[player+date.toDateString()] = (dTot[player+date.toDateString()] || 0) + pts;
                             
-                            if (curP === scorer) curS++; else {
+                            // Skull Logic Tracker
+                            if (pts < 0) {
+                                lastAction[player] = 'punished';
+                                pCnt[scorer] = (pCnt[scorer] || 0) + 1;
+                                vCnt[player] = (vCnt[player] || 0) + Math.abs(pts);
+                                // Reaper logic: keep track of who the scorer currently has under a skull
+                                if(!reaperVictims[scorer]) reaperVictims[scorer] = new Set();
+                                reaperVictims[scorer].add(player);
+                            } else {
+                                lastAction[player] = 'scored';
+                                // If they scored, they are no longer a victim for ANY reaper
+                                Object.values(reaperVictims).forEach(set => set.delete(player));
+                            }
+
+                            if (curP === scorer && pts > 0) curS++; 
+                            else if (pts > 0) {
                                 if (curP && curS >= CONFIG.GODLIKE) slay[scorer] = (slay[scorer] || 0) + 1;
                                 curP = scorer; curS = 1;
                             }
-                            mStr[scorer] = Math.max(mStr[scorer] || 0, curS);
+                            if(pts > 0) mStr[scorer] = Math.max(mStr[scorer] || 0, curS);
 
                             const currTotal = mTot[player] || 0;
                             const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-
                             if (pts < 0) {
-                                pCnt[scorer] = (pCnt[scorer] || 0) + 1; vCnt[player] = (vCnt[player] || 0) + Math.abs(pts);
                                 logArr.unshift({ time: timeStr, text: `<b>${scorer}</b> punished <b>${player}</b>! (${pts}) (Total ${currTotal})`, isNeg: true });
                             } else {
                                 if (curS >= 2) {
@@ -276,10 +279,9 @@
                         }
                     });
 
-                    const currentMonthKey = `${targetYear}-${targetMonth}`;
                     const fame = [];
                     Object.keys(hist).forEach(mk => {
-                        if (mk === currentMonthKey) return; 
+                        if (mk === `${targetY}-${targetM}`) return;
                         const scores = Object.entries(hist[mk]);
                         if (scores.length === 0) return;
                         const [y, m] = mk.split('-');
@@ -289,30 +291,37 @@
                     });
                     hallOfFame.value = fame.sort((a,b) => b.sortKey - a.sortKey);
 
-                    players.value = [...pSet].sort();
-                    logs.value = logArr.slice(0, 20);
-                    lifetime.value = Object.entries(lTot).map(([name, pts]) => ({ name, pts })).sort((a,b)=>b.pts-a.pts);
-                    
                     const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
                     const topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
 
                     monthly.value = Object.entries(mTot).map(([name, pts]) => {
                         let title = "";
                         const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(name)).map(k=>dTot[k]), 0);
+                        
+                        // Grim Reaper logic: Does this scorer have a skull on EVERY OTHER active player?
+                        const otherPlayers = Object.keys(mTot).filter(p => p !== name);
+                        const isReaper = otherPlayers.length > 0 && otherPlayers.every(p => lastAction[p] === 'punished');
+
                         if (mStr[name] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
                         else if (slay[name] >= CONFIG.SLAYER) title = "Godslayer";
+                        else if (isReaper) title = "Grim Reaper";
                         else if (name === topP && pCnt[name] > 0) title = "Punisher";
                         else if (name === topV && vCnt[name] > 0) title = "The Punished";
                         else if (pts >= CONFIG.CENTURION) title = "Centurion";
                         else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
-                        return { name, pts, title, icon: (curP === name && pts > 0) ? TIERS[Math.min(curS, 6)].icon : '' };
+                        
+                        return { 
+                            name, pts, title, 
+                            icon: (curP === name && pts > 0) ? TIERS[Math.min(curS, 6)].icon : '',
+                            isSkulled: lastAction[name] === 'punished'
+                        };
                     }).sort((a,b)=>b.pts-a.pts);
 
                     let high = { player: 'N/A', points: 0 };
-                    Object.keys(hist).forEach(k => {
-                        Object.entries(hist[k]).forEach(([p,pts]) => { if (pts > high.points) high = { player: p, points: pts }; });
-                    });
+                    Object.keys(hist).forEach(k => Object.entries(hist[k]).forEach(([p,pts]) => { if (pts > high.points) high = { player: p, points: pts }; }));
                     allTimeHigh.value = high;
+                    players.value = [...pSet].sort();
+                    logs.value = logArr.slice(0, 20);
 
                     const lastEntry = rows[rows.length - 1];
                     if (lastEntry && (Date.now() - lastEntry.timestamp)/1000 < 10) {
@@ -325,7 +334,6 @@
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
             const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
             const getTooltip = (title) => TOOLTIPS[title] || "Achievement earned!";
-
             const submitScore = async () => {
                 const s = (form.value.scorer || form.value.newPlayer).trim();
                 const pts = form.value.points;
