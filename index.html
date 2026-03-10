@@ -91,8 +91,8 @@
                             <tr v-for="(r, idx) in monthly" :key="r.name" class="hover">
                                 <td class="opacity-20 font-bold italic">{{ idx + 1 }}</td>
                                 <td :title="getTooltip(r.title)">
-                                    <div class="flex items-center gap-3">
-                                        <div class="flex items-center gap-1 min-w-[1.5rem] justify-center">
+                                    <div class="flex items-center gap-3 pl-8 relative">
+                                        <div class="absolute left-0 flex items-center gap-1 w-8 justify-center">
                                             <span v-if="r.isSkulled" class="text-lg leading-none">💀</span>
                                             <span v-else-if="r.icon" class="text-2xl leading-none">{{ r.icon }}</span>
                                         </div>
@@ -207,7 +207,7 @@
                 3: { icon: '💥', title: 'LEGENDARY!', color: '#facc15', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
                 4: { icon: '👑', title: 'EPIC!', color: '#4ade80', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
                 5: { icon: '⚡', title: 'UNSTOPPABLE!', color: '#60a5fa', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
-                6: { icon: '🌌', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
+                6: { icon: '🌀', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
             };
 
             const currentSeasonName = computed(() => new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
@@ -228,45 +228,32 @@
                 onValue(fbRef, (snap) => {
                     const data = snap.val();
                     if (!data) return;
-                    
                     const pSet = new Set(), mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
                     const lastAction = {}; 
                     let globalCurP = null, globalCurS = 0;
-
                     const rows = Object.values(data);
                     rows.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
                     const now = new Date(), targetM = now.getMonth(), targetY = now.getFullYear();
-
                     rows.forEach((d) => {
                         const date = new Date(d.timestamp);
                         const player = d.player, scorer = d.scorer || d.player, pts = Number(d.points || 0);
                         const isM = (date.getMonth() === targetM && date.getFullYear() === targetY);
                         const mk = `${date.getFullYear()}-${date.getMonth()}`;
-
                         pSet.add(player); pSet.add(scorer);
-
-                        // Lifetime Logic: Aggregates ALL positive points ever scored. Punishments (negative) are ignored.
-                        if (pts > 0) {
-                            lTot[scorer] = (lTot[scorer] || 0) + pts;
-                        }
-
+                        if (pts > 0) lTot[scorer] = (lTot[scorer] || 0) + pts;
                         if (!hist[mk]) hist[mk] = {};
                         hist[mk][player] = (hist[mk][player] || 0) + pts;
-
                         if (isM) {
                             mTot[player] = (mTot[player] || 0) + pts;
                             dTot[player+date.toDateString()] = (dTot[player+date.toDateString()] || 0) + pts;
-                            
                             const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                             const currTotal = mTot[player] || 0;
-
                             if (pts < 0) {
                                 let brokenText = "";
                                 if (globalCurP === player && globalCurS >= 2) {
                                     brokenText = ` <span class="text-error font-bold">[STREAK BROKEN!]</span>`;
                                     globalCurP = null; globalCurS = 0;
                                 }
-                                
                                 lastAction[player] = 'punished';
                                 pCnt[scorer] = (pCnt[scorer] || 0) + 1;
                                 vCnt[player] = (vCnt[player] || 0) + Math.abs(pts);
@@ -280,7 +267,6 @@
                                     globalCurP = scorer; globalCurS = 1;
                                 }
                                 mStr[scorer] = Math.max(mStr[scorer] || 0, globalCurS);
-
                                 if (globalCurS >= 2 && globalCurP === scorer) {
                                     const t = TIERS[Math.min(globalCurS, 6)];
                                     logArr.unshift({ time: timeStr, text: `<b>${scorer}</b> scored ${pts} and is ${t.title} (Streak ${globalCurS}, Total ${currTotal}) ${t.icon}`, color: t.color, streak: globalCurS });
@@ -288,7 +274,6 @@
                             }
                         }
                     });
-
                     const currentMonthKey = `${targetY}-${targetM}`;
                     const fame = [];
                     Object.keys(hist).forEach(mk => {
@@ -301,16 +286,13 @@
                         fame.push({ monthKey: mk, label, winner: top[0], pts: top[1], sortKey: parseInt(y)*12 + parseInt(m) });
                     });
                     hallOfFame.value = fame.sort((a,b) => b.sortKey - a.sortKey);
-
                     const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
                     const topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
-
                     monthly.value = Object.entries(mTot).map(([name, pts]) => {
                         let title = "";
                         const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(name)).map(k=>dTot[k]), 0);
                         const otherPlayers = Object.keys(mTot).filter(p => p !== name);
                         const isReaper = otherPlayers.length > 0 && otherPlayers.every(p => lastAction[p] === 'punished');
-
                         if (mStr[name] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
                         else if (slay[name] >= CONFIG.SLAYER) title = "Godslayer";
                         else if (isReaper) title = "Grim Reaper";
@@ -318,22 +300,18 @@
                         else if (name === topV && vCnt[name] > 0) title = "The Punished";
                         else if (pts >= CONFIG.CENTURION) title = "Centurion";
                         else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
-                        
                         return { 
                             name, pts, title, 
                             icon: (globalCurP === name) ? TIERS[Math.min(globalCurS, 6)]?.icon : '',
                             isSkulled: lastAction[name] === 'punished'
                         };
                     }).sort((a,b)=>b.pts-a.pts);
-
                     let high = { player: 'N/A', points: 0 };
                     Object.keys(hist).forEach(k => Object.entries(hist[k]).forEach(([p,pts]) => { if (pts > high.points) high = { player: p, points: pts }; }));
                     allTimeHigh.value = high;
                     players.value = [...pSet].sort();
                     logs.value = logArr.slice(0, 20);
-                    // Updated Lifetime display
                     lifetime.value = Object.entries(lTot).map(([name, pts]) => ({ name, pts })).sort((a,b)=>b.pts-a.pts);
-
                     const lastEntry = rows[rows.length - 1];
                     if (lastEntry && (Date.now() - lastEntry.timestamp)/1000 < 10) {
                         if (lastEntry.points < 0) playAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
