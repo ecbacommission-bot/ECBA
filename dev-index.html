@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam | V2.1</title>
+    <title>ECBA Slam Jam | V2.2</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -165,7 +165,7 @@
                                 <span class="text-warning font-black uppercase text-[11px] tracking-widest">{{ entry.time }}</span>
                                 <div class="flex items-center gap-2">
                                     <span v-if="entry.streak" class="badge badge-xs badge-ghost opacity-50 font-bold italic">Streak: {{ entry.streak }}</span>
-                                    <button v-if="isAdmin" @click="deleteEntry(entry.id)" class="btn btn-ghost btn-xs text-error opacity-0 group-hover:opacity-100 px-1 min-h-0 h-4">✕</button>
+                                    <button v-if="isAdmin" @click="deleteEntry(entry.id)" class="btn btn-ghost bg-error/20 btn-xs text-error px-2 min-h-0 h-6">✕ Delete</button>
                                 </div>
                             </div>
                             <span class="leading-relaxed" v-html="entry.text"></span>
@@ -230,7 +230,8 @@
             const form = vRef({ scorerId: '', newPlayer: '', targetId: '', points: 1 });
 
             const isReadOnly = vRef(new URLSearchParams(window.location.search).get('viewonly') === 'true');
-            const isAdmin = computed(() => new URLSearchParams(window.location.search).get('admin') === 'true');
+            // Changed to vRef just in case Vue caching still causes issues on some loads
+            const isAdmin = vRef(new URLSearchParams(window.location.search).get('admin') === 'true');
 
             const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
             const TOOLTIPS = {
