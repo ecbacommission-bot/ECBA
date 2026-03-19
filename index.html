@@ -22,7 +22,7 @@
             50% { opacity: 0.5; transform: scale(1.1); color: white; }
         }
         .animate-score-flash {
-            animation: flash-score 0.5s ease-in-out 3;
+            animation: flash-score 1.5s ease-in-out infinite;
         }
     </style>
 </head>
@@ -255,8 +255,8 @@
                         return;
                     }
                     const pSet = new Set(), mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
-                    const lastAction = {}, lastUpdatedPlayers = new Set(); 
-                    let globalCurP = null, globalCurS = 0;
+                    const lastAction = {}; 
+                    let globalCurP = null, globalCurS = 0, lastMonthlyPlayer = null;
 
                     const sortedData = Object.entries(data).sort((a,b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
                     const now = new Date(), targetM = now.getMonth(), targetY = now.getFullYear();
@@ -273,8 +273,8 @@
                         hist[mk][player] = (hist[mk][player] || 0) + pts;
 
                         if (isM) {
-                            // Flash logic: Check if entry is very recent
-                            if (Date.now() - d.timestamp < 5000) lastUpdatedPlayers.add(player);
+                            // Tracks the very last player in the chronological array for this month
+                            lastMonthlyPlayer = player;
 
                             mTot[player] = (mTot[player] || 0) + pts;
                             dTot[player+date.toDateString()] = (dTot[player+date.toDateString()] || 0) + pts;
@@ -334,7 +334,7 @@
                             name, pts, title, 
                             icon: (globalCurP === name) ? TIERS[Math.min(globalCurS, 6)]?.icon : '', 
                             isSkulled: lastAction[name] === 'punished',
-                            justUpdated: lastUpdatedPlayers.has(name)
+                            justUpdated: name === lastMonthlyPlayer
                         };
                     }).sort((a,b)=>b.pts-a.pts);
 
