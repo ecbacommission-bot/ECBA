@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>ECBA Database Migration Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-base-300 min-h-screen flex items-center justify-center p-4 text-slate-200">
+
+    <div class="card bg-base-100 shadow-xl max-w-lg w-full">
+        <div class="card-body text-center">
+            <h2 class="text-2xl font-black text-warning mb-4 uppercase">Database Migration</h2>
+            <p class="text-sm opacity-70 mb-6">This will read your current `/scores`, generate unique User IDs, and create new `/users` and `/scores_v2` nodes safely.</p>
+            
+            <button id="migrateBtn" class="btn btn-warning btn-block font-bold">🚀 Run Migration</button>
+            
+            <div id="status" class="mt-4 font-mono text-xs text-left bg-base-300 p-4 rounded-lg h-48 overflow-y-auto whitespace-pre-wrap">Waiting to start...</div>
+        </div>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, get, set, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // Your exact Firebase config
+    const fbApp = initializeApp({
+        apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g",
+        authDomain: "ecba-slamjam.firebaseapp.com",
+        databaseURL: "https://ecba-slamjam-default-rtdb.firebaseio.com",
+        projectId: "ecba-slamjam",
+        storageBucket: "ecba-slamjam.firebasestorage.app",
+        messagingSenderId: "194161211475",
+        appId: "1:194161211475:web:1fbd26416759f10587aea6"
+    });
+    const db = getDatabase(fbApp);
+
+    const btn = document.getElementById('migrateBtn');
+    const status = document.getElementById('status');
+    const log = (msg) => { status.innerHTML += `\n> ${msg}`; status.scrollTop = status.scrollHeight; };
+
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        log("Starting migration process...");
+
+        try {
+            // 1. Fetch old data
+            log("Fetching old /scores...");
+            const snapshot = await get(child(ref(db), 'scores'));
+            if (!snapshot.exists()) {
+                log("No data found to migrate! Aborting.");
+                return;
+            }
+            const oldScores = snapshot.val();
+            
+            // 2. Extract unique players
+            log("Extracting unique players...");
+            const uniqueNames = new Set();
+            Object.values(oldScores).forEach(d => {
+                if (d.player) uniqueNames.add(d.player);
+                if (d.scorer) uniqueNames.add(d.scorer);
+            });
+
+            // 3. Generate Users Dictionary
+            log(`Found ${uniqueNames.size} unique players. Generating IDs...`);
+            const usersMap = {}; // Maps "Dave" -> "user_xyz"
+            const newUsersNode = {}; 
+            
+            Array.from(uniqueNames).forEach((name, index) => {
+                const userId = `user_${String(index + 1).padStart(3, '0')}`; // e.g., user_001
+                usersMap[name] = userId;
+                newUsersNode[userId] = {
+                    name: name,
+                    isActive: true,
+                    dateAdded: Date.now()
+                };
+            });
+
+            // 4. Translate Scores
+            log("Translating scores to use IDs...");
+            const newScoresNode = {};
+            Object.entries(oldScores).forEach(([key, data]) => {
+                newScoresNode[key] = {
+                    targetId: usersMap[data.player],
+                    scorerId: usersMap[data.scorer || data.player],
+                    points: data.points,
+                    timestamp: data.timestamp || Date.now()
+                };
+            });
+
+            // 5. Upload to Firebase
+            log("Uploading /users to Firebase...");
+            await set(ref(db, 'users'), newUsersNode);
+            
+            log("Uploading /scores_v2 to Firebase...");
+            await set(ref(db, 'scores_v2'), newScoresNode);
+
+            log("\n✅ MIGRATION COMPLETE!");
+            log("You can now safely check your Firebase Database console to verify the new structure.");
+
+        } catch (error) {
+            log(`❌ ERROR: ${error.message}`);
+        }
+    });
+</script>
+</body>
+</html>
