@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam | V2</title>
+    <title>ECBA Slam Jam | V2.1</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -80,9 +80,10 @@
         <div :class="isReadOnly ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-8'" class="flex flex-col gap-4">
             <div class="tabs tabs-boxed bg-base-100 border border-white/5 p-1">
                 <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'monthly'}">📅 MONTHLY</button>
-                <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'hall'}">🏆 HALL OF FAME</button>
+                <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'hall'}">🏆 HALL</button>
                 <button @click="view = 'lifetime'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'lifetime'}">🌟 LIFETIME</button>
                 <button @click="view = 'recent'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'recent'}">📰 ACTIVITY</button>
+                <button v-if="isAdmin" @click="view = 'manage'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-error !text-black': view === 'manage'}">⚙️ ROSTER</button>
             </div>
 
             <div class="card bg-base-100 shadow-xl border border-white/5 min-h-[450px]">
@@ -170,6 +171,25 @@
                             <span class="leading-relaxed" v-html="entry.text"></span>
                         </li>
                     </ul>
+
+                    <div v-if="view === 'manage'" class="p-4 space-y-4 max-h-[500px] overflow-y-auto">
+                        <h3 class="text-error font-bold uppercase tracking-widest text-[10px] mb-2">Player Management (Admin Only)</h3>
+                        <div class="grid grid-cols-1 gap-2">
+                            <div v-for="u in allUsers" :key="u.id" class="flex items-center justify-between bg-base-200/50 p-3 rounded-lg border border-white/5 hover:bg-base-200 transition-all">
+                                <div class="flex flex-col">
+                                    <span class="font-black text-sm uppercase tracking-tight" :class="{'opacity-30 line-through': !u.isActive}">{{ u.name }}</span>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest" :class="u.isActive ? 'text-success' : 'text-error opacity-50'">{{ u.isActive ? 'Active' : 'Retired' }}</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button @click="renameUser(u.id, u.name)" class="btn btn-xs btn-outline btn-warning">Rename</button>
+                                    <button @click="toggleStatus(u.id, u.isActive)" class="btn btn-xs btn-outline" :class="u.isActive ? 'btn-error' : 'btn-success'">
+                                        {{ u.isActive ? 'Retire' : 'Reactivate' }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -191,7 +211,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, remove, set, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, remove, set, update, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const { createApp, ref: vRef, onMounted, computed } = Vue;
 
@@ -207,7 +227,6 @@
             const allTimeHigh = vRef({ player: 'N/A', points: 0 });
             const overlay = vRef({ show: false, gif: '' });
             
-            // Replaced string names with IDs
             const form = vRef({ scorerId: '', newPlayer: '', targetId: '', points: 1 });
 
             const isReadOnly = vRef(new URLSearchParams(window.location.search).get('viewonly') === 'true');
@@ -245,7 +264,6 @@
             });
             const fbDb = getDatabase(fbApp);
             
-            // New V2 Refs
             const usersRef = ref(fbDb, 'users');
             const scoresRef = ref(fbDb, 'scores_v2');
 
@@ -253,13 +271,13 @@
             let rawScores = {};
             let isUsersLoaded = false, isScoresLoaded = false;
 
-            // Computed list to filter out retired players from dropdowns
-            const activeUsers = computed(() => {
-                return Object.entries(usersMap.value)
-                    .filter(([id, u]) => u.isActive !== false) // Defaults to true
-                    .map(([id, u]) => ({ id, name: u.name }))
-                    .sort((a,b) => a.name.localeCompare(b.name));
+            const allUsers = computed(() => {
+                return Object.entries(usersMap.value).map(([id, u]) => ({
+                    id, name: u.name, isActive: u.isActive !== false
+                })).sort((a,b) => a.name.localeCompare(b.name));
             });
+
+            const activeUsers = computed(() => allUsers.value.filter(u => u.isActive));
 
             const processData = () => {
                 if (!rawScores) { logs.value = []; monthly.value = []; lifetime.value = []; return; }
@@ -394,7 +412,6 @@
                 submitting.value = true;
                 
                 try {
-                    // Automatically create a new user profile if they typed a new name
                     if (newName) {
                         const newUserRef = push(usersRef);
                         sid = newUserRef.key;
@@ -420,7 +437,24 @@
                 }
             };
 
-            return { view, activeUsers, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, deleteEntry, overlay, currentSeasonName, submitting, showSuccess, getTooltip, isAdmin, isReadOnly };
+            // NEW ADMIN METHODS
+            const renameUser = async (id, oldName) => {
+                const newName = prompt(`Enter a new name for ${oldName}:`, oldName);
+                if (newName && newName.trim() !== "" && newName !== oldName) {
+                    try { await update(ref(fbDb, `users/${id}`), { name: newName.trim() }); } 
+                    catch(e) { console.error(e); }
+                }
+            };
+
+            const toggleStatus = async (id, currentStatus) => {
+                const action = currentStatus ? "Retire" : "Reactivate";
+                if(confirm(`Are you sure you want to ${action} this player?`)) {
+                    try { await update(ref(fbDb, `users/${id}`), { isActive: !currentStatus }); } 
+                    catch(e) { console.error(e); }
+                }
+            };
+
+            return { view, allUsers, activeUsers, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, deleteEntry, renameUser, toggleStatus, overlay, currentSeasonName, submitting, showSuccess, getTooltip, isAdmin, isReadOnly };
         }
     }).mount('#app');
 </script>
