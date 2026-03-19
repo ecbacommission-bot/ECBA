@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam | DEV</title>
+    <title>ECBA Slam Jam | V2</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -15,6 +15,15 @@
             color: #FBBD23; 
         }
         .transition-all { transition: all 0.3s ease; }
+        
+        /* Score Flash Animation */
+        @keyframes flash-score {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); color: white; }
+        }
+        .animate-score-flash {
+            animation: flash-score 1.5s ease-in-out infinite;
+        }
     </style>
 </head>
 <body class="bg-base-300 min-h-screen pb-20 text-slate-200">
@@ -28,14 +37,14 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        <div class="lg:col-span-4 card bg-base-100 shadow-2xl border border-white/5 h-fit">
+        <div v-show="!isReadOnly" class="lg:col-span-4 card bg-base-100 shadow-2xl border border-white/5 h-fit">
             <div class="card-body p-6 gap-4">
                 <h2 class="text-center text-warning uppercase text-[10px] tracking-widest mb-2 font-bold">Submit Entry</h2>
                 
                 <div class="form-control">
-                    <select v-model="form.scorer" class="select select-bordered select-warning w-full text-center font-bold">
+                    <select v-model="form.scorerId" class="select select-bordered select-warning w-full text-center font-bold">
                         <option value="">-- Choose Player --</option>
-                        <option v-for="p in players" :key="p" :value="p">{{ p }}</option>
+                        <option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
                     </select>
                     <input v-model="form.newPlayer" type="text" placeholder="OR Add New Name" class="input input-sm input-bordered mt-2 text-center uppercase text-[10px] placeholder:text-warning text-warning font-bold" />
                 </div>
@@ -52,9 +61,9 @@
 
                 <div v-if="form.points < 0" class="form-control bg-error/10 p-3 rounded-xl border border-error/30 animate-pulse">
                     <label class="label text-[10px] uppercase font-bold text-error py-0 mb-1 justify-center">Select Punishment Target</label>
-                    <select v-model="form.target" class="select select-error select-sm w-full font-bold text-center">
+                    <select v-model="form.targetId" class="select select-error select-sm w-full font-bold text-center">
                         <option value="">-- Choose Victim --</option>
-                        <option v-for="p in players" :key="p" :value="p">{{ p }}</option>
+                        <option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
                     </select>
                 </div>
 
@@ -68,7 +77,7 @@
             </div>
         </div>
 
-        <div class="lg:col-span-8 flex flex-col gap-4">
+        <div :class="isReadOnly ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-8'" class="flex flex-col gap-4">
             <div class="tabs tabs-boxed bg-base-100 border border-white/5 p-1">
                 <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'monthly'}">📅 MONTHLY</button>
                 <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'hall'}">🏆 HALL OF FAME</button>
@@ -85,14 +94,18 @@
 
                     <table v-if="view === 'monthly'" class="table table-zebra table-sm font-medium">
                         <thead class="text-warning uppercase text-[10px] tracking-widest">
-                            <tr><th>Rank</th><th>Player</th><th class="text-right">Points</th></tr>
+                            <tr>
+                                <th>Rank</th>
+                                <th class="pl-8">Player</th>
+                                <th class="text-right">Points</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(r, idx) in monthly" :key="r.name" class="hover">
+                            <tr v-for="(r, idx) in monthly" :key="r.id + '-' + r.pts" class="hover">
                                 <td class="opacity-20 font-bold italic">{{ idx + 1 }}</td>
                                 <td :title="getTooltip(r.title)">
-                                    <div class="flex items-center gap-3">
-                                        <div class="flex items-center gap-1 min-w-[1.5rem] justify-center">
+                                    <div class="flex items-center gap-3 pl-8 relative">
+                                        <div class="absolute left-0 flex items-center gap-1 w-8 justify-center">
                                             <span v-if="r.isSkulled" class="text-lg leading-none">💀</span>
                                             <span v-else-if="r.icon" class="text-2xl leading-none">{{ r.icon }}</span>
                                         </div>
@@ -100,7 +113,9 @@
                                         <span v-if="r.title" class="achievement-badge">{{ r.title }}</span>
                                     </div>
                                 </td>
-                                <td class="text-right font-black text-warning text-lg tracking-tighter">{{ r.pts }}</td>
+                                <td class="text-right font-black text-warning text-lg tracking-tighter" :class="{'animate-score-flash': r.justUpdated}">
+                                    {{ r.pts }}
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -144,10 +159,13 @@
                     </table>
 
                     <ul v-if="view === 'recent'" class="p-4 space-y-2 overflow-y-auto max-h-[500px]">
-                        <li v-for="(entry, i) in logs" :key="i" class="log-entry text-xs bg-base-200/50 rounded-lg border-base-content/10 py-2 pr-2" :style="{ borderLeftColor: entry.color || (entry.isNeg ? '#ff4d4d' : '#333') }">
+                        <li v-for="(entry, i) in logs" :key="i" class="log-entry text-xs bg-base-200/50 rounded-lg border-base-content/10 py-2 pr-2 relative group" :style="{ borderLeftColor: entry.color || (entry.isNeg ? '#ff4d4d' : '#333') }">
                             <div class="flex justify-between items-start mb-1">
-                                <span class="opacity-30 uppercase text-[9px] font-bold tracking-tighter">[{{ entry.time }}]</span>
-                                <span v-if="entry.streak" class="badge badge-xs badge-ghost opacity-50 font-bold italic">Streak: {{ entry.streak }}</span>
+                                <span class="text-warning font-black uppercase text-[11px] tracking-widest">{{ entry.time }}</span>
+                                <div class="flex items-center gap-2">
+                                    <span v-if="entry.streak" class="badge badge-xs badge-ghost opacity-50 font-bold italic">Streak: {{ entry.streak }}</span>
+                                    <button v-if="isAdmin" @click="deleteEntry(entry.id)" class="btn btn-ghost btn-xs text-error opacity-0 group-hover:opacity-100 px-1 min-h-0 h-4">✕</button>
+                                </div>
                             </div>
                             <span class="leading-relaxed" v-html="entry.text"></span>
                         </li>
@@ -173,7 +191,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, remove, set, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const { createApp, ref: vRef, onMounted, computed } = Vue;
 
@@ -182,14 +200,18 @@
             const submitting = vRef(false);
             const showSuccess = vRef(false);
             const view = vRef('monthly');
-            const players = vRef([]);
             const monthly = vRef([]);
             const lifetime = vRef([]);
             const hallOfFame = vRef([]);
             const logs = vRef([]);
             const allTimeHigh = vRef({ player: 'N/A', points: 0 });
             const overlay = vRef({ show: false, gif: '' });
-            const form = vRef({ scorer: '', newPlayer: '', target: '', points: 1 });
+            
+            // Replaced string names with IDs
+            const form = vRef({ scorerId: '', newPlayer: '', targetId: '', points: 1 });
+
+            const isReadOnly = vRef(new URLSearchParams(window.location.search).get('viewonly') === 'true');
+            const isAdmin = computed(() => new URLSearchParams(window.location.search).get('admin') === 'true');
 
             const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
             const TOOLTIPS = {
@@ -207,7 +229,7 @@
                 3: { icon: '💥', title: 'LEGENDARY!', color: '#facc15', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
                 4: { icon: '👑', title: 'EPIC!', color: '#4ade80', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
                 5: { icon: '⚡', title: 'UNSTOPPABLE!', color: '#60a5fa', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
-                6: { icon: '🌌', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
+                6: { icon: '🌀', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
             };
 
             const currentSeasonName = computed(() => new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
@@ -222,145 +244,183 @@
                 appId: "1:194161211475:web:1fbd26416759f10587aea6"
             });
             const fbDb = getDatabase(fbApp);
-            const fbRef = ref(fbDb, 'scores');
+            
+            // New V2 Refs
+            const usersRef = ref(fbDb, 'users');
+            const scoresRef = ref(fbDb, 'scores_v2');
+
+            const usersMap = vRef({});
+            let rawScores = {};
+            let isUsersLoaded = false, isScoresLoaded = false;
+
+            // Computed list to filter out retired players from dropdowns
+            const activeUsers = computed(() => {
+                return Object.entries(usersMap.value)
+                    .filter(([id, u]) => u.isActive !== false) // Defaults to true
+                    .map(([id, u]) => ({ id, name: u.name }))
+                    .sort((a,b) => a.name.localeCompare(b.name));
+            });
+
+            const processData = () => {
+                if (!rawScores) { logs.value = []; monthly.value = []; lifetime.value = []; return; }
+                
+                const getName = (id) => usersMap.value[id] ? usersMap.value[id].name : "Unknown Player";
+
+                const mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
+                const lastAction = {}; 
+                let globalCurP = null, globalCurS = 0, lastMonthlyPlayer = null;
+
+                const sortedData = Object.entries(rawScores).sort((a,b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
+                const now = new Date(), targetM = now.getMonth(), targetY = now.getFullYear();
+
+                sortedData.forEach(([id, d]) => {
+                    const date = new Date(d.timestamp);
+                    const scorerId = d.scorerId;
+                    const targetId = d.targetId || scorerId; 
+                    const pts = Number(d.points || 0);
+                    
+                    const isM = (date.getMonth() === targetM && date.getFullYear() === targetY);
+                    const mk = `${date.getFullYear()}-${date.getMonth()}`;
+
+                    if (pts > 0) lTot[scorerId] = (lTot[scorerId] || 0) + pts;
+                    if (!hist[mk]) hist[mk] = {};
+                    hist[mk][scorerId] = (hist[mk][scorerId] || 0) + pts;
+
+                    if (isM) {
+                        lastMonthlyPlayer = scorerId;
+
+                        mTot[scorerId] = (mTot[scorerId] || 0) + pts;
+                        dTot[scorerId+date.toDateString()] = (dTot[scorerId+date.toDateString()] || 0) + pts;
+                        const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        const currTotal = mTot[scorerId] || 0;
+                        
+                        const scorerName = getName(scorerId);
+                        const targetName = getName(targetId);
+
+                        if (pts < 0) {
+                            let brokenText = "";
+                            if (globalCurP === targetId && globalCurS >= 2) {
+                                brokenText = ` <span class="text-error font-bold">[STREAK BROKEN!]</span>`;
+                                globalCurP = null; globalCurS = 0;
+                            }
+                            lastAction[targetId] = 'punished';
+                            pCnt[scorerId] = (pCnt[scorerId] || 0) + 1;
+                            vCnt[targetId] = (vCnt[targetId] || 0) + Math.abs(pts);
+                            logArr.unshift({ id, time: timeStr, text: `<b>${scorerName}</b> punished <b>${targetName}</b>! (${pts}) (Total ${currTotal})${brokenText}`, isNeg: true });
+                        } else {
+                            lastAction[scorerId] = 'scored';
+                            if (globalCurP === scorerId) {
+                                globalCurS++;
+                            } else {
+                                if (globalCurP && globalCurS >= CONFIG.GODLIKE) slay[scorerId] = (slay[scorerId] || 0) + 1;
+                                globalCurP = scorerId; globalCurS = 1;
+                            }
+                            mStr[scorerId] = Math.max(mStr[scorerId] || 0, globalCurS);
+                            if (globalCurS >= 2 && globalCurP === scorerId) {
+                                const t = TIERS[Math.min(globalCurS, 6)];
+                                logArr.unshift({ id, time: timeStr, text: `<b>${scorerName}</b> scored ${pts} and is ${t.title} (Streak ${globalCurS}, Total ${currTotal}) ${t.icon}`, color: t.color, streak: globalCurS });
+                            } else logArr.unshift({ id, time: timeStr, text: `<b>${scorerName}</b> scored ${pts}. (Total ${currTotal})` });
+                        }
+                    }
+                });
+
+                hallOfFame.value = Object.keys(hist).filter(mk => mk !== `${targetY}-${targetM}`).map(mk => {
+                    const scores = Object.entries(hist[mk]);
+                    const [y, m] = mk.split('-');
+                    const top = scores.sort((a,b) => b[1] - a[1])[0];
+                    return { monthKey: mk, label: new Date(y, m).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: getName(top[0]), pts: top[1], sortKey: parseInt(y)*12 + parseInt(m) };
+                }).sort((a,b) => b.sortKey - a.sortKey);
+
+                const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
+                const topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
+
+                monthly.value = Object.entries(mTot).map(([uid, pts]) => {
+                    let title = "";
+                    const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(uid)).map(k=>dTot[k]), 0);
+                    const otherPlayers = Object.keys(mTot).filter(p => p !== uid);
+                    const isReaper = otherPlayers.length > 0 && otherPlayers.every(p => lastAction[p] === 'punished');
+                    if (mStr[uid] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
+                    else if (slay[uid] >= CONFIG.SLAYER) title = "Godslayer";
+                    else if (isReaper) title = "Grim Reaper";
+                    else if (uid === topP && pCnt[uid] > 0) title = "Punisher";
+                    else if (uid === topV && vCnt[uid] > 0) title = "The Punished";
+                    else if (pts >= CONFIG.CENTURION) title = "Centurion";
+                    else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
+                    return { 
+                        id: uid, name: getName(uid), pts, title, 
+                        icon: (globalCurP === uid) ? TIERS[Math.min(globalCurS, 6)]?.icon : '', 
+                        isSkulled: lastAction[uid] === 'punished',
+                        justUpdated: uid === lastMonthlyPlayer
+                    };
+                }).sort((a,b)=>b.pts-a.pts);
+
+                let high = { player: 'N/A', points: 0 };
+                Object.keys(hist).forEach(k => Object.entries(hist[k]).forEach(([p,pts]) => { if (pts > high.points) high = { player: getName(p), points: pts }; }));
+                allTimeHigh.value = high;
+                
+                logs.value = logArr.slice(0, 20);
+                lifetime.value = Object.entries(lTot).map(([uid, pts]) => ({ name: getName(uid), pts })).sort((a,b)=>b.pts-a.pts);
+
+                const lastEntry = sortedData[sortedData.length - 1]?.[1];
+                if (lastEntry && (Date.now() - lastEntry.timestamp)/1000 < 10) {
+                    if (lastEntry.points < 0) playAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
+                    else if (globalCurP === lastEntry.scorerId && globalCurS >= 2) playAnim(TIERS[Math.min(globalCurS, 6)].gif);
+                }
+            };
 
             onMounted(() => {
-                onValue(fbRef, (snap) => {
-                    const data = snap.val();
-                    if (!data) return;
-                    
-                    const pSet = new Set(), mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [];
-                    const lastAction = {}; 
-                    let globalCurP = null, globalCurS = 0;
-
-                    const rows = Object.values(data);
-                    rows.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
-                    const now = new Date(), targetM = now.getMonth(), targetY = now.getFullYear();
-
-                    rows.forEach((d) => {
-                        const date = new Date(d.timestamp);
-                        const player = d.player, scorer = d.scorer || d.player, pts = Number(d.points || 0);
-                        const isM = (date.getMonth() === targetM && date.getFullYear() === targetY);
-                        const mk = `${date.getFullYear()}-${date.getMonth()}`;
-
-                        pSet.add(player); pSet.add(scorer);
-
-                        // Lifetime Logic: Aggregates ALL positive points ever scored. Punishments (negative) are ignored.
-                        if (pts > 0) {
-                            lTot[scorer] = (lTot[scorer] || 0) + pts;
-                        }
-
-                        if (!hist[mk]) hist[mk] = {};
-                        hist[mk][player] = (hist[mk][player] || 0) + pts;
-
-                        if (isM) {
-                            mTot[player] = (mTot[player] || 0) + pts;
-                            dTot[player+date.toDateString()] = (dTot[player+date.toDateString()] || 0) + pts;
-                            
-                            const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                            const currTotal = mTot[player] || 0;
-
-                            if (pts < 0) {
-                                let brokenText = "";
-                                if (globalCurP === player && globalCurS >= 2) {
-                                    brokenText = ` <span class="text-error font-bold">[STREAK BROKEN!]</span>`;
-                                    globalCurP = null; globalCurS = 0;
-                                }
-                                
-                                lastAction[player] = 'punished';
-                                pCnt[scorer] = (pCnt[scorer] || 0) + 1;
-                                vCnt[player] = (vCnt[player] || 0) + Math.abs(pts);
-                                logArr.unshift({ time: timeStr, text: `<b>${scorer}</b> punished <b>${player}</b>! (${pts}) (Total ${currTotal})${brokenText}`, isNeg: true });
-                            } else {
-                                lastAction[player] = 'scored';
-                                if (globalCurP === scorer) {
-                                    globalCurS++;
-                                } else {
-                                    if (globalCurP && globalCurS >= CONFIG.GODLIKE) slay[scorer] = (slay[scorer] || 0) + 1;
-                                    globalCurP = scorer; globalCurS = 1;
-                                }
-                                mStr[scorer] = Math.max(mStr[scorer] || 0, globalCurS);
-
-                                if (globalCurS >= 2 && globalCurP === scorer) {
-                                    const t = TIERS[Math.min(globalCurS, 6)];
-                                    logArr.unshift({ time: timeStr, text: `<b>${scorer}</b> scored ${pts} and is ${t.title} (Streak ${globalCurS}, Total ${currTotal}) ${t.icon}`, color: t.color, streak: globalCurS });
-                                } else logArr.unshift({ time: timeStr, text: `<b>${player}</b> scored ${pts}. (Total ${currTotal})` });
-                            }
-                        }
-                    });
-
-                    const currentMonthKey = `${targetY}-${targetM}`;
-                    const fame = [];
-                    Object.keys(hist).forEach(mk => {
-                        if (mk === currentMonthKey) return;
-                        const scores = Object.entries(hist[mk]);
-                        if (scores.length === 0) return;
-                        const [y, m] = mk.split('-');
-                        const label = new Date(y, m).toLocaleString('default', { month: 'long', year: 'numeric' });
-                        const top = scores.sort((a,b) => b[1] - a[1])[0];
-                        fame.push({ monthKey: mk, label, winner: top[0], pts: top[1], sortKey: parseInt(y)*12 + parseInt(m) });
-                    });
-                    hallOfFame.value = fame.sort((a,b) => b.sortKey - a.sortKey);
-
-                    const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
-                    const topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
-
-                    monthly.value = Object.entries(mTot).map(([name, pts]) => {
-                        let title = "";
-                        const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(name)).map(k=>dTot[k]), 0);
-                        const otherPlayers = Object.keys(mTot).filter(p => p !== name);
-                        const isReaper = otherPlayers.length > 0 && otherPlayers.every(p => lastAction[p] === 'punished');
-
-                        if (mStr[name] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
-                        else if (slay[name] >= CONFIG.SLAYER) title = "Godslayer";
-                        else if (isReaper) title = "Grim Reaper";
-                        else if (name === topP && pCnt[name] > 0) title = "Punisher";
-                        else if (name === topV && vCnt[name] > 0) title = "The Punished";
-                        else if (pts >= CONFIG.CENTURION) title = "Centurion";
-                        else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
-                        
-                        return { 
-                            name, pts, title, 
-                            icon: (globalCurP === name) ? TIERS[Math.min(globalCurS, 6)]?.icon : '',
-                            isSkulled: lastAction[name] === 'punished'
-                        };
-                    }).sort((a,b)=>b.pts-a.pts);
-
-                    let high = { player: 'N/A', points: 0 };
-                    Object.keys(hist).forEach(k => Object.entries(hist[k]).forEach(([p,pts]) => { if (pts > high.points) high = { player: p, points: pts }; }));
-                    allTimeHigh.value = high;
-                    players.value = [...pSet].sort();
-                    logs.value = logArr.slice(0, 20);
-                    // Updated Lifetime display
-                    lifetime.value = Object.entries(lTot).map(([name, pts]) => ({ name, pts })).sort((a,b)=>b.pts-a.pts);
-
-                    const lastEntry = rows[rows.length - 1];
-                    if (lastEntry && (Date.now() - lastEntry.timestamp)/1000 < 10) {
-                        if (lastEntry.points < 0) playAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
-                        else if (globalCurP === lastEntry.scorer && globalCurS >= 2) playAnim(TIERS[Math.min(globalCurS, 6)].gif);
-                    }
+                onValue(usersRef, (snap) => {
+                    usersMap.value = snap.val() || {};
+                    isUsersLoaded = true;
+                    if (isScoresLoaded) processData();
+                });
+                onValue(scoresRef, (snap) => {
+                    rawScores = snap.val() || {};
+                    isScoresLoaded = true;
+                    if (isUsersLoaded) processData();
                 });
             });
 
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
             const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
             const getTooltip = (title) => TOOLTIPS[title] || "Achievement earned!";
+            
             const submitScore = async () => {
-                const s = (form.value.scorer || form.value.newPlayer).trim();
+                let sid = form.value.scorerId;
+                const newName = form.value.newPlayer.trim();
                 const pts = form.value.points;
-                let t = pts < 0 ? form.value.target : s;
-                if (!s || (pts < 0 && !t)) return;
+                
+                if (!sid && !newName) return; 
                 submitting.value = true;
+                
                 try {
-                    await push(fbRef, { player: t, points: pts, scorer: s, timestamp: serverTimestamp() });
+                    // Automatically create a new user profile if they typed a new name
+                    if (newName) {
+                        const newUserRef = push(usersRef);
+                        sid = newUserRef.key;
+                        await set(newUserRef, { name: newName, isActive: true, dateAdded: Date.now() });
+                    }
+
+                    let tid = pts < 0 ? form.value.targetId : sid;
+                    if (pts < 0 && !tid) { submitting.value = false; return; }
+
+                    await push(scoresRef, { targetId: tid, scorerId: sid, points: pts, timestamp: serverTimestamp() });
+                    
                     showSuccess.value = true;
-                    form.value = { scorer: '', newPlayer: '', target: '', points: 1 };
+                    view.value = 'monthly';
+                    form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
                     setTimeout(() => showSuccess.value = false, 2000);
                 } catch (e) { console.error(e); }
                 submitting.value = false;
             };
 
-            return { view, players, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, overlay, currentSeasonName, submitting, showSuccess, getTooltip };
+            const deleteEntry = async (id) => {
+                if(confirm("Permanently delete this score entry?")) {
+                    try { await remove(ref(fbDb, `scores_v2/${id}`)); } catch (e) { console.error(e); }
+                }
+            };
+
+            return { view, activeUsers, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, deleteEntry, overlay, currentSeasonName, submitting, showSuccess, getTooltip, isAdmin, isReadOnly };
         }
     }).mount('#app');
 </script>
