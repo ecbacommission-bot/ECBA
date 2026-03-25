@@ -373,7 +373,11 @@
                     }
                     let tid = pts < 0 ? form.value.targetId : sid;
                     if (pts < 0 && !tid) { submitting.value = false; return; }
-                    await push(scoresRef, { targetId: tid, scorerId: sid, points: pts, timestamp: serverTimestamp() });
+                    
+                    // Functional Change: When negative, we apply the points to the victim (tid) 
+                    // and keep the scorer (sid) only for logging purposes.
+                    await push(scoresRef, { targetId: tid, scorerId: pts < 0 ? tid : sid, actualScorer: pts < 0 ? sid : null, points: pts, timestamp: serverTimestamp() });
+                    
                     showSuccess.value = true; view.value = 'monthly';
                     form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
                     setTimeout(() => showSuccess.value = false, 2000);
