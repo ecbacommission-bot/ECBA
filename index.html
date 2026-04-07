@@ -140,7 +140,7 @@
                     </ul>
 
                     <div v-if="view === 'manage'" class="p-4 space-y-4 max-h-[500px] overflow-y-auto">
-                        <h3 class="text-error font-bold uppercase tracking-widest text-[10px] mb-2">Player Management</h3>
+                        <h3 class="text-error font-bold uppercase tracking-widest text-[10px] mb-2">Player Management (Admin)</h3>
                         <div class="grid grid-cols-1 gap-2">
                             <div v-for="u in allUsers" :key="u.id" class="flex items-center justify-between bg-base-200/50 p-3 rounded-lg border border-white/5">
                                 <div class="flex flex-col"><span class="font-black text-sm uppercase" :class="{'opacity-30 line-through': !u.isActive}">{{ u.name }}</span><span class="text-[10px] font-bold" :class="u.isActive ? 'text-success' : 'text-error opacity-50'">{{ u.isActive ? 'Active' : 'Retired' }}</span></div>
@@ -174,15 +174,9 @@
 
     createApp({
         setup() {
-            const submitting = vRef(false);
-            const showSuccess = vRef(false);
-            const view = vRef('monthly');
-            const monthly = vRef([]);
-            const lifetime = vRef([]);
-            const hallOfFame = vRef([]);
-            const logs = vRef([]);
-            const allTimeHigh = vRef({ player: 'N/A', points: 0 });
-            const overlay = vRef({ show: false, gif: '' });
+            const submitting = vRef(false), showSuccess = vRef(false), view = vRef('monthly');
+            const monthly = vRef([]), lifetime = vRef([]), hallOfFame = vRef([]), logs = vRef([]);
+            const allTimeHigh = vRef({ player: 'N/A', points: 0 }), overlay = vRef({ show: false, gif: '' });
             const form = vRef({ scorerId: '', newPlayer: '', targetId: '', points: 1 });
 
             const isReadOnly = vRef(new URLSearchParams(window.location.search).get('viewonly') === 'true');
@@ -190,31 +184,28 @@
 
             const CONFIG = { JUGGERNAUT: 15, SLAYER: 3, GODLIKE: 6, CENTURION: 100, PRAETORIAN: 150, OVERACHIEVER: 25 };
             const TOOLTIPS = {
-                "Praetorian": "Ultimate elite. 150+ points.",
-                "Centurion": "Hit the 100-point milestone.",
-                "Grim Reaper": "Skulled every other player (Min 4 players).",
-                "Godslayer": "Ended 3 Godlike streaks.",
-                "Juggernaut": "Maintained streak of 15+.",
-                "Punisher": "Most punishments handed out.",
-                "The Punished": "Most negative points received.",
-                "Overachiever": "25+ points in one day."
+                "Praetorian": "The ultimate elite. Surpassed the 150-point threshold.",
+                "Centurion": "The veteran. Hit the 100-point milestone.",
+                "Grim Reaper": "Skulled every other player (Min. 4 players).",
+                "Godslayer": "Ended a Godlike streak (6+) three or more times.",
+                "Juggernaut": "Maintained a scoring streak of 15 or more.",
+                "Punisher": "Handed out the most punishments this season.",
+                "The Punished": "Received the most negative points this season.",
+                "Overachiever": "Scored 25 or more points in a single day."
             };
 
             const TIERS = {
                 2: { icon: '🔥', title: 'ON FIRE!', color: '#fb923c', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
                 6: { icon: '🌀', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
-                // (Others exist in TIERS logic)
             };
 
-            const currentSeasonName = computed(() => new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
             const fbApp = initializeApp({ apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g", authDomain: "ecba-slamjam.firebaseapp.com", databaseURL: "https://ecba-slamjam-default-rtdb.firebaseio.com", projectId: "ecba-slamjam" });
-            const fbDb = getDatabase(fbApp);
-            const usersRef = ref(fbDb, 'users'), scoresRef = ref(fbDb, 'scores_v2');
-            const usersMap = vRef({});
-            let rawScores = {}, isUsersLoaded = false, isScoresLoaded = false;
+            const fbDb = getDatabase(fbApp), usersRef = ref(fbDb, 'users'), scoresRef = ref(fbDb, 'scores_v2');
+            const usersMap = vRef({}); let rawScores = {}, isUsersLoaded = false, isScoresLoaded = false;
 
             const allUsers = computed(() => Object.entries(usersMap.value).map(([id, u]) => ({ id, name: u.name, isActive: u.isActive !== false })).sort((a,b) => a.name.localeCompare(b.name)));
             const activeUsers = computed(() => allUsers.value.filter(u => u.isActive));
+            const currentSeasonName = computed(() => new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
 
             const processData = () => {
                 if (!rawScores) return;
@@ -229,26 +220,29 @@
                     const date = new Date(d.timestamp);
                     const sId = d.scorerId, tId = d.targetId || sId, pts = Number(d.points || 0);
                     const mk = `${date.getFullYear()}-${date.getMonth()}`, isM = (date.getMonth() === targetM && date.getFullYear() === targetY);
+                    
                     if (pts > 0) lTot[sId] = (lTot[sId] || 0) + pts;
                     if (!hist[mk]) hist[mk] = {};
-                    hist[mk][sId] = (hist[mk][sId] || 0) + pts;
+                    
                     if (isM) {
                         lastMonthlyPlayer = sId;
                         const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         if (pts < 0) {
-                            mTot[tId] = (mTot[tId] || 0) + pts;
+                            mTot[tId] = (mTot[tId] || 0) + pts; hist[mk][tId] = (hist[mk][tId] || 0) + pts;
                             if (globalCurP === tId && globalCurS >= 2) { globalCurP = null; globalCurS = 0; }
-                            lastAction[tId] = 'punished';
-                            pCnt[sId] = (pCnt[sId] || 0) + 1; vCnt[tId] = (vCnt[tId] || 0) + Math.abs(pts);
+                            lastAction[tId] = 'punished'; pCnt[sId] = (pCnt[sId] || 0) + 1; vCnt[tId] = (vCnt[tId] || 0) + Math.abs(pts);
                             logArr.unshift({ id, time: timeStr, text: `<b>${getName(sId)}</b> punished <b>${getName(tId)}</b>! (${pts})`, isNeg: true });
                         } else {
-                            mTot[sId] = (mTot[sId] || 0) + pts;
+                            mTot[sId] = (mTot[sId] || 0) + pts; hist[mk][sId] = (hist[mk][sId] || 0) + pts;
                             dTot[sId+date.toDateString()] = (dTot[sId+date.toDateString()] || 0) + pts;
                             lastAction[sId] = 'scored';
                             if (globalCurP === sId) globalCurS++; else { if (globalCurP && globalCurS >= CONFIG.GODLIKE) slay[sId] = (slay[sId] || 0) + 1; globalCurP = sId; globalCurS = 1; }
                             mStr[sId] = Math.max(mStr[sId] || 0, globalCurS);
                             logArr.unshift({ id, time: timeStr, text: `<b>${getName(sId)}</b> scored ${pts}`, streak: globalCurS > 1 ? globalCurS : null });
                         }
+                    } else {
+                        const targetIdForHist = pts < 0 ? tId : sId;
+                        hist[mk][targetIdForHist] = (hist[mk][targetIdForHist] || 0) + pts;
                     }
                 });
 
@@ -257,8 +251,8 @@
 
                 hallOfFame.value = Object.keys(hist).filter(mk => mk !== `${targetY}-${targetM}`).map(mk => {
                     const [y, m] = mk.split('-'), top = Object.entries(hist[mk]).sort((a,b) => b[1] - a[1])[0];
-                    return { monthKey: mk, label: new Date(y, m).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: getName(top[0]), pts: top[1], sortKey: parseInt(y)*12 + parseInt(m) };
-                }).sort((a,b) => b.sortKey - a.sortKey);
+                    return top ? { monthKey: mk, label: new Date(y, m).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: getName(top[0]), pts: top[1], sortKey: parseInt(y)*12 + parseInt(m) } : null;
+                }).filter(x => x).sort((a,b) => b.sortKey - a.sortKey);
 
                 const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0], topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
                 monthly.value = Object.entries(mTot).map(([uid, pts]) => {
@@ -266,7 +260,8 @@
                     const isReaper = activeUsers.value.length >= 4 && others.length > 0 && others.every(p => lastAction[p] === 'punished');
                     if (pts >= CONFIG.PRAETORIAN) title = "Praetorian"; else if (pts >= CONFIG.CENTURION) title = "Centurion"; else if (isReaper) title = "Grim Reaper";
                     else if (slay[uid] >= CONFIG.SLAYER) title = "Godslayer"; else if (mStr[uid] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
-                    return { id: uid, name: getName(uid), pts, title, isPR: pts > (historicalBests[uid] || 0) && (historicalBests[uid] || 0) > 0, isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastMonthlyPlayer };
+                    else if (uid === topP) title = "Punisher"; else if (uid === topV) title = "The Punished";
+                    return { id: uid, name: getName(uid), pts, title, isPR: pts > (historicalBests[uid] || 0) && (historicalBests[uid] || 0) > 0, isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastMonthlyPlayer, icon: (globalCurP === uid) ? TIERS[Math.min(globalCurS, 6)]?.icon : '' };
                 }).sort((a,b)=>b.pts-a.pts);
 
                 logs.value = logArr.slice(0, 20);
