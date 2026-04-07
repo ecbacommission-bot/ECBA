@@ -157,7 +157,7 @@
         <a href="." class="block transition-all hover:scale-110 active:scale-95">
             <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" alt="ECBA Logo" class="w-24 h-24 drop-shadow-[0_0_15px_rgba(251,189,35,0.3)]">
         </a>
-        <p class="text-[10px] opacity-20 font-mono mt-2 tracking-widest">v2.4</p>
+        <p class="text-[10px] opacity-20 font-mono mt-2 tracking-widest">v2.5</p>
     </div>
 
 </div>
@@ -191,6 +191,9 @@
 
             const TIERS = {
                 2: { icon: '🔥', title: 'ON FIRE!', color: '#fb923c', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
+                3: { icon: '💥', title: 'LEGENDARY!', color: '#facc15', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
+                4: { icon: '👑', title: 'EPIC!', color: '#4ade80', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
+                5: { icon: '⚡', title: 'UNSTOPPABLE!', color: '#60a5fa', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
                 6: { icon: '🌀', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
             };
 
@@ -224,16 +227,26 @@
                         const timeStr = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         if (pts < 0) {
                             mTot[tId] = (mTot[tId] || 0) + pts; hist[mk][tId] = (hist[mk][tId] || 0) + pts;
-                            if (globalCurP === tId && globalCurS >= 2) { globalCurP = null; globalCurS = 0; }
+                            let brokenText = "";
+                            if (globalCurP === tId && globalCurS >= 2) { 
+                                brokenText = ` <span class="text-error font-bold">[STREAK BROKEN!]</span>`; 
+                                globalCurP = null; globalCurS = 0; 
+                            }
                             lastAction[tId] = 'punished'; pCnt[sId] = (pCnt[sId] || 0) + 1; vCnt[tId] = (vCnt[tId] || 0) + Math.abs(pts);
-                            logArr.unshift({ id, time: timeStr, text: `<b>${getName(sId)}</b> punished <b>${getName(tId)}</b>! (${pts})`, isNeg: true });
+                            logArr.unshift({ id, time: timeStr, text: `<b>${getName(sId)}</b> punished <b>${getName(tId)}</b>! (${pts}) (Total: ${mTot[tId]})${brokenText}`, isNeg: true });
                         } else {
                             mTot[sId] = (mTot[sId] || 0) + pts; hist[mk][sId] = (hist[mk][sId] || 0) + pts;
                             dTot[sId+date.toDateString()] = (dTot[sId+date.toDateString()] || 0) + pts;
                             lastAction[sId] = 'scored';
                             if (globalCurP === sId) globalCurS++; else { if (globalCurP && globalCurS >= CONFIG.GODLIKE) slay[sId] = (slay[sId] || 0) + 1; globalCurP = sId; globalCurS = 1; }
                             mStr[sId] = Math.max(mStr[sId] || 0, globalCurS);
-                            logArr.unshift({ id, time: timeStr, text: `<b>${getName(sId)}</b> scored ${pts}`, streak: globalCurS > 1 ? globalCurS : null });
+                            const t = TIERS[Math.min(globalCurS, 6)];
+                            logArr.unshift({ 
+                                id, time: timeStr, 
+                                text: `<b>${getName(sId)}</b> scored ${pts}${globalCurS >= 2 ? ' and is ' + t.title + ' (Streak ' + globalCurS + ')' : ''}. (Total: ${mTot[sId]})`, 
+                                color: globalCurS >= 2 ? t.color : null, 
+                                streak: globalCurS > 1 ? globalCurS : null 
+                            });
                         }
                     } else {
                         const targetIdForHist = pts < 0 ? tId : sId;
@@ -266,8 +279,8 @@
                     else if (isReaper) title = "Grim Reaper";
                     else if (slay[uid] >= CONFIG.SLAYER) title = "Godslayer"; 
                     else if (mStr[uid] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
-                    else if (uid === topP && pCnt[uid] >= 10) title = "Punisher"; // Threshold: 10 acts
-                    else if (uid === topV && vCnt[uid] >= 10) title = "The Punished"; // Threshold: 10 pts
+                    else if (uid === topP && pCnt[uid] >= 10) title = "Punisher"; 
+                    else if (uid === topV && vCnt[uid] >= 10) title = "The Punished";
                     else if (dTot[uid + new Date().toDateString()] >= CONFIG.OVERACHIEVER) title = "Overachiever";
 
                     return { id: uid, name: getName(uid), pts, title, isPR: pts > (historicalBests[uid] || 0) && (historicalBests[uid] || 0) > 0, isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastMonthlyPlayer, icon: (globalCurP === uid) ? TIERS[Math.min(globalCurS, 6)]?.icon : '' };
