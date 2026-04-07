@@ -157,7 +157,7 @@
         <a href="." class="block transition-all hover:scale-110 active:scale-95">
             <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" alt="ECBA Logo" class="w-24 h-24 drop-shadow-[0_0_15px_rgba(251,189,35,0.3)]">
         </a>
-        <p class="text-[10px] opacity-20 font-mono mt-2 tracking-widest">v2.2.build-{{BUILD_NUMBER}}</p>
+        <p class="text-[10px] opacity-20 font-mono mt-2 tracking-widest">v2.4.build-{{BUILD_NUMBER}}</p>
     </div>
 
 </div>
@@ -184,8 +184,8 @@
                 "Grim Reaper": "Skulled every other player (Min. 4 players).",
                 "Godslayer": "Ended a Godlike streak (6+) three or more times.",
                 "Juggernaut": "Maintained a scoring streak of 15 or more.",
-                "Punisher": "Handed out the most punishments this season.",
-                "The Punished": "Received the most negative points this season.",
+                "Punisher": "Handed out the most punishments this season (Min. 10 acts).",
+                "The Punished": "Received the most negative points this season (Min. 10 points).",
                 "Overachiever": "Scored 25 or more points in a single day."
             };
 
@@ -243,15 +243,10 @@
 
                 const historicalBests = {};
                 let high = { player: 'N/A', points: 0 };
-
                 Object.keys(hist).forEach(mk => {
                     Object.entries(hist[mk]).forEach(([pId, pPts]) => {
-                        // Track Global High Score (Banner)
                         if (pPts > high.points) high = { player: getName(pId), points: pPts };
-                        // Track Personal Records (Exclude current month)
-                        if (mk !== `${targetY}-${targetM}`) {
-                            historicalBests[pId] = Math.max(historicalBests[pId] || 0, pPts);
-                        }
+                        if (mk !== `${targetY}-${targetM}`) historicalBests[pId] = Math.max(historicalBests[pId] || 0, pPts);
                     });
                 });
 
@@ -265,9 +260,16 @@
                 monthly.value = Object.entries(mTot).map(([uid, pts]) => {
                     let title = ""; const others = Object.keys(mTot).filter(p => p !== uid);
                     const isReaper = activeUsers.value.length >= 4 && others.length > 0 && others.every(p => lastAction[p] === 'punished');
-                    if (pts >= CONFIG.PRAETORIAN) title = "Praetorian"; else if (pts >= CONFIG.CENTURION) title = "Centurion"; else if (isReaper) title = "Grim Reaper";
-                    else if (slay[uid] >= CONFIG.SLAYER) title = "Godslayer"; else if (mStr[uid] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
-                    else if (uid === topP) title = "Punisher"; else if (uid === topV) title = "The Punished";
+                    
+                    if (pts >= CONFIG.PRAETORIAN) title = "Praetorian"; 
+                    else if (pts >= CONFIG.CENTURION) title = "Centurion"; 
+                    else if (isReaper) title = "Grim Reaper";
+                    else if (slay[uid] >= CONFIG.SLAYER) title = "Godslayer"; 
+                    else if (mStr[uid] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
+                    else if (uid === topP && pCnt[uid] >= 10) title = "Punisher"; // Threshold: 10 acts
+                    else if (uid === topV && vCnt[uid] >= 10) title = "The Punished"; // Threshold: 10 pts
+                    else if (dTot[uid + new Date().toDateString()] >= CONFIG.OVERACHIEVER) title = "Overachiever";
+
                     return { id: uid, name: getName(uid), pts, title, isPR: pts > (historicalBests[uid] || 0) && (historicalBests[uid] || 0) > 0, isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastMonthlyPlayer, icon: (globalCurP === uid) ? TIERS[Math.min(globalCurS, 6)]?.icon : '' };
                 }).sort((a,b)=>b.pts-a.pts);
 
