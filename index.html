@@ -18,11 +18,7 @@
         .achievement-badge:active { transform: scale(0.9); opacity: 0.8; }
         .pr-badge { @apply badge badge-error badge-xs font-black p-1 text-[8px] italic; animation: pulse-red 2s infinite; }
         @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-        
-        @keyframes flash-score {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.1); color: white; }
-        }
+        @keyframes flash-score { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); color: white; } }
         .animate-score-flash { animation: flash-score 1.5s ease-in-out infinite; }
     </style>
 </head>
@@ -78,7 +74,7 @@
                 <button v-if="isAdmin" @click="view = 'manage'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-error !text-black': view === 'manage'}">⚙️ ROSTER</button>
             </div>
 
-            <div class="card bg-base-100 shadow-xl border border-white/5 min-h-[450px]">
+            <div class="card bg-base-100 shadow-xl border border-white/5 h-fit min-h-[300px]">
                 <div class="p-2">
                     <table v-if="view === 'monthly'" class="table table-zebra table-sm font-medium">
                         <thead class="text-warning uppercase text-[10px] tracking-widest">
@@ -161,7 +157,7 @@
         <a href="." class="block transition-all hover:scale-110 active:scale-95">
             <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" alt="ECBA Logo" class="w-24 h-24 drop-shadow-[0_0_15px_rgba(251,189,35,0.3)]">
         </a>
-        <p class="text-[10px] opacity-20 font-mono mt-2 tracking-widest">v2.1.build-{{BUILD_NUMBER}}</p>
+        <p class="text-[10px] opacity-20 font-mono mt-2 tracking-widest">v2.2.build-{{BUILD_NUMBER}}</p>
     </div>
 
 </div>
@@ -178,7 +174,6 @@
             const monthly = vRef([]), lifetime = vRef([]), hallOfFame = vRef([]), logs = vRef([]);
             const allTimeHigh = vRef({ player: 'N/A', points: 0 }), overlay = vRef({ show: false, gif: '' });
             const form = vRef({ scorerId: '', newPlayer: '', targetId: '', points: 1 });
-
             const isReadOnly = vRef(new URLSearchParams(window.location.search).get('viewonly') === 'true');
             const isAdmin = vRef(new URLSearchParams(window.location.search).get('admin') === 'true');
 
@@ -247,8 +242,20 @@
                 });
 
                 const historicalBests = {};
-                Object.keys(hist).forEach(mk => { if (mk !== `${targetY}-${targetM}`) Object.entries(hist[mk]).forEach(([p,pts]) => historicalBests[p] = Math.max(historicalBests[p]||0, pts)); });
+                let high = { player: 'N/A', points: 0 };
 
+                Object.keys(hist).forEach(mk => {
+                    Object.entries(hist[mk]).forEach(([pId, pPts]) => {
+                        // Track Global High Score (Banner)
+                        if (pPts > high.points) high = { player: getName(pId), points: pPts };
+                        // Track Personal Records (Exclude current month)
+                        if (mk !== `${targetY}-${targetM}`) {
+                            historicalBests[pId] = Math.max(historicalBests[pId] || 0, pPts);
+                        }
+                    });
+                });
+
+                allTimeHigh.value = high;
                 hallOfFame.value = Object.keys(hist).filter(mk => mk !== `${targetY}-${targetM}`).map(mk => {
                     const [y, m] = mk.split('-'), top = Object.entries(hist[mk]).sort((a,b) => b[1] - a[1])[0];
                     return top ? { monthKey: mk, label: new Date(y, m).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: getName(top[0]), pts: top[1], sortKey: parseInt(y)*12 + parseInt(m) } : null;
