@@ -12,12 +12,12 @@
         .log-entry { font-family: 'JetBrains Mono', monospace; border-left-width: 4px; padding-left: 0.75rem; }
         .btn-circle {touch-action: manipulation; }
         .achievement-badge { 
-            @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px] bg-transparent p-0;
+            @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px] bg-transparent p-0 cursor-pointer transition-transform;
             color: #FBBD23; 
         }
+        .achievement-badge:active { transform: scale(0.9); opacity: 0.8; }
         .transition-all { transition: all 0.3s ease; }
         
-        /* Score Flash Animation */
         @keyframes flash-score {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(1.1); color: white; }
@@ -105,14 +105,14 @@
                         <tbody>
                             <tr v-for="(r, idx) in monthly" :key="r.id + '-' + r.pts" class="hover">
                                 <td class="opacity-20 font-bold italic">{{ idx + 1 }}</td>
-                                <td :title="getTooltip(r.title)">
+                                <td>
                                     <div class="flex items-center gap-3 pl-8 relative">
                                         <div class="absolute left-0 flex items-center gap-1 w-8 justify-center">
                                             <span v-if="r.isSkulled" class="text-lg leading-none">💀</span>
                                             <span v-else-if="r.icon" class="text-2xl leading-none">{{ r.icon }}</span>
                                         </div>
                                         <span class="font-black text-sm tracking-tight uppercase">{{ r.name }}</span>
-                                        <span v-if="r.title" class="achievement-badge">{{ r.title }}</span>
+                                        <span v-if="r.title" @click.stop="showAchievementDelta(r.title)" class="achievement-badge">{{ r.title }}</span>
                                     </div>
                                 </td>
                                 <td class="text-right font-black text-warning text-lg tracking-tighter" :class="{'animate-score-flash': r.justUpdated}">
@@ -231,15 +231,16 @@
             const isReadOnly = vRef(new URLSearchParams(window.location.search).get('viewonly') === 'true');
             const isAdmin = vRef(new URLSearchParams(window.location.search).get('admin') === 'true');
 
-            const CONFIG = { JUGGERNAUT: 10, SLAYER: 3, GODLIKE: 6, CENTURION: 100, OVERACHIEVER: 25 };
+            const CONFIG = { JUGGERNAUT: 15, SLAYER: 3, GODLIKE: 6, CENTURION: 100, PRAETORIAN: 150, OVERACHIEVER: 25 };
             const TOOLTIPS = {
-                "Juggernaut": "Maintained a scoring streak of 10 or more.",
+                "Praetorian": "The ultimate elite. Surpassed the 150-point threshold.",
+                "Centurion": "The veteran. Hit the 100-point milestone.",
+                "Grim Reaper": "Simultaneously placed a skull on every other active player (Min. 4 players).",
                 "Godslayer": "Ended a Godlike streak (6+) three or more times.",
+                "Juggernaut": "Maintained a scoring streak of 15 or more.",
                 "Punisher": "Handed out the most punishments this season.",
                 "The Punished": "Received the most negative points this season.",
-                "Centurion": "Hit the 100-point milestone.",
-                "Overachiever": "Scored 25 or more points in a single day.",
-                "Grim Reaper": "Simultaneously placed a skull on every other active player."
+                "Overachiever": "Scored 25 or more points in a single day."
             };
 
             const TIERS = {
@@ -329,14 +330,18 @@
                 monthly.value = Object.entries(mTot).map(([uid, pts]) => {
                     let title = "";
                     const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(uid)).map(k=>dTot[k]), 0);
-                    const others = Object.keys(mTot).filter(p => p !== uid), isReaper = others.length > 0 && others.every(p => lastAction[p] === 'punished');
-                    if (mStr[uid] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
-                    else if (slay[uid] >= CONFIG.SLAYER) title = "Godslayer";
+                    const others = Object.keys(mTot).filter(p => p !== uid);
+                    const isReaper = activeUsers.value.length >= 4 && others.length > 0 && others.every(p => lastAction[p] === 'punished');
+                    
+                    if (pts >= CONFIG.PRAETORIAN) title = "Praetorian";
+                    else if (pts >= CONFIG.CENTURION) title = "Centurion";
                     else if (isReaper) title = "Grim Reaper";
+                    else if (slay[uid] >= CONFIG.SLAYER) title = "Godslayer";
+                    else if (mStr[uid] >= CONFIG.JUGGERNAUT) title = "Juggernaut";
                     else if (uid === topP) title = "Punisher";
                     else if (uid === topV) title = "The Punished";
-                    else if (pts >= CONFIG.CENTURION) title = "Centurion";
                     else if (dMax >= CONFIG.OVERACHIEVER) title = "Overachiever";
+                    
                     return { id: uid, name: getName(uid), pts, title, icon: (globalCurP === uid) ? TIERS[Math.min(globalCurS, 6)]?.icon : '', isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastMonthlyPlayer };
                 }).sort((a,b)=>b.pts-a.pts);
 
@@ -360,7 +365,7 @@
 
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
             const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
-            const getTooltip = (title) => TOOLTIPS[title] || "Achievement earned!";
+            const showAchievementDelta = (title) => { alert(`${title.toUpperCase()}\n\n${TOOLTIPS[title] || "Achievement earned!"}`); };
             
             const submitScore = async () => {
                 let sid = form.value.scorerId; const newName = form.value.newPlayer.trim(); const pts = form.value.points;
@@ -374,11 +379,7 @@
                     }
                     let tid = pts < 0 ? form.value.targetId : sid;
                     if (pts < 0 && !tid) { submitting.value = false; return; }
-                    
-                    // Functional Change: When negative, we apply the points to the victim (tid) 
-                    // and keep the scorer (sid) only for logging purposes.
                     await push(scoresRef, { targetId: tid, scorerId: pts < 0 ? tid : sid, actualScorer: pts < 0 ? sid : null, points: pts, timestamp: serverTimestamp() });
-                    
                     showSuccess.value = true; view.value = 'monthly';
                     form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
                     setTimeout(() => showSuccess.value = false, 2000);
@@ -393,7 +394,7 @@
             };
             const toggleStatus = async (id, stat) => { if(confirm(`Sure?`)) await update(ref(fbDb, `users/${id}`), { isActive: !stat }); };
 
-            return { view, allUsers, activeUsers, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, deleteEntry, renameUser, toggleStatus, overlay, currentSeasonName, submitting, showSuccess, getTooltip, isAdmin, isReadOnly };
+            return { view, allUsers, activeUsers, monthly, hallOfFame, lifetime, logs, allTimeHigh, form, changePoints, submitScore, deleteEntry, renameUser, toggleStatus, overlay, currentSeasonName, submitting, showSuccess, showAchievementDelta, isAdmin, isReadOnly };
         }
     }).mount('#app');
 </script>
