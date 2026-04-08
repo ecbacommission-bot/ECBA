@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.9.3</title>
+    <title>ECBA Slam Jam 2.9.4</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -144,10 +144,15 @@
     </div>
 
     <div class="mt-12 flex flex-col items-center">
-        <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" class="w-16 h-16 drop-shadow-lg">
-        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.3</p>
+        <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" 
+             @click="window.location.reload()"
+             class="w-16 h-16 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95" 
+             alt="ECBA Logo">
+        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.4</p>
     </div>
 </div>
+
+    
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
