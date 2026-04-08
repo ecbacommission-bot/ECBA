@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.5</title>
+    <title>ECBA Slam Jam 2.0</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -157,7 +157,7 @@
         <a href="." class="block transition-all hover:scale-110 active:scale-95">
             <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" alt="ECBA Logo" class="w-24 h-24 drop-shadow-[0_0_15px_rgba(251,189,35,0.3)]">
         </a>
-        <p class="text-[10px] opacity-20 font-mono mt-2 tracking-widest">v2.5</p>
+        <p class="text-[10px] opacity-20 font-mono mt-2 tracking-widest">Version 2.6</p>
     </div>
 
 </div>
@@ -288,6 +288,13 @@
 
                 logs.value = logArr.slice(0, 20);
                 lifetime.value = Object.entries(lTot).map(([uid, pts]) => ({ name: getName(uid), pts })).sort((a,b)=>b.pts-a.pts);
+
+                // --- RE-RESTORED ANIMATION TRIGGERS ---
+                const last = sortedData[sortedData.length-1]?.[1];
+                if (last && (Date.now() - last.timestamp)/1000 < 10) {
+                    if (last.points < 0) playAnim("https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif");
+                    else if (globalCurP === last.scorerId && globalCurS >= 2) playAnim(TIERS[Math.min(globalCurS, 6)].gif);
+                }
             };
 
             onMounted(() => {
@@ -316,6 +323,7 @@
             };
 
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
+            const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
             const showAchievementDelta = (title) => { alert(`${title.toUpperCase()}\n\n${TOOLTIPS[title] || "Achievement earned!"}`); };
             const renameUser = async (id, old) => { const n = prompt(`New name for ${old}:`, old); if (n && n.trim()) await update(ref(fbDb, `users/${id}`), { name: n.trim() }); };
             const toggleStatus = async (id, stat) => { if(confirm(`Sure?`)) await update(ref(fbDb, `users/${id}`), { isActive: !stat }); };
