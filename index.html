@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.9.5</title>
+    <title>ECBA Slam Jam 2.9.6</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -16,6 +16,12 @@
         @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
         @keyframes flash-score { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); color: white; } }
         .animate-score-flash { animation: flash-score 1.5s ease-in-out infinite; }
+        
+        /* Force Active Tab Color to Slam Jam Yellow */
+        .tabs-boxed .tab-active:not(.tab-disabled):not([aria-disabled="true"]) {
+            background-color: #FBBD23 !important;
+            color: #000000 !important;
+        }
     </style>
 </head>
 <body class="bg-base-300 min-h-screen pb-20 text-slate-200">
@@ -54,15 +60,15 @@
 
         <div :class="isReadOnly ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-8'" class="flex flex-col gap-4">
             <div class="tabs tabs-boxed bg-base-100 border border-white/5 p-1">
-                <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'monthly'}">📅 CURRENT SEASON</button>
-                <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'hall'}">🏆 HALL OF FAME</button>
-                <button @click="view = 'lifetime'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'lifetime'}">🌟 LIFETIME</button>
-                <button @click="view = 'recent'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'recent'}">📰 ACTIVITY</button>
+                <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active': view === 'monthly'}">📅 CURRENT SEASON</button>
+                <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active': view === 'hall'}">🏆 HALL OF FAME</button>
+                <button @click="view = 'lifetime'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active': view === 'lifetime'}">🌟 LIFETIME</button>
+                <button @click="view = 'recent'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active': view === 'recent'}">📰 ACTIVITY</button>
                 <button v-if="isAdmin" @click="view = 'report'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-info !text-black': view === 'report'}">📊 LOGIC</button>
                 <button v-if="isAdmin" @click="view = 'manage'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-error !text-black': view === 'manage'}">⚙️ ROSTER</button>
             </div>
 
-            <div class="card bg-base-100 shadow-xl border border-white/5 h-fit min-h-[300px]">
+            <div class="card bg-base-100 shadow-xl border border-white/5 min-h-[300px]">
                 <div class="p-2">
                     <table v-if="view === 'monthly'" class="table table-zebra table-sm font-medium">
                         <thead class="text-warning uppercase text-[10px] tracking-widest"><tr><th>Rank</th><th class="pl-8">Player</th><th class="text-right">Points</th></tr></thead>
@@ -148,7 +154,7 @@
              @click="window.location.reload()"
              class="w-16 h-16 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95" 
              alt="ECBA Logo">
-        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.5</p>
+        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.6</p>
     </div>
 </div>
 
