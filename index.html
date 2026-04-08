@@ -60,8 +60,8 @@
 
         <div :class="isReadOnly ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-8'" class="flex flex-col gap-4">
             <div class="tabs tabs-boxed bg-base-100 border border-white/5 p-1 flex-nowrap overflow-hidden">
-                <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold whitespace-nowrap" :class="[view === 'monthly' ? 'tab-active' : '', isAdmin ? 'text-[9px]' : 'text-xs']">📅 CURRENT</button>
-                <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold whitespace-nowrap" :class="[view === 'hall' ? 'tab-active' : '', isAdmin ? 'text-[9px]' : 'text-xs']">🏆 HALL</button>
+                <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold whitespace-nowrap" :class="[view === 'monthly' ? 'tab-active' : '', isAdmin ? 'text-[9px]' : 'text-xs']">📅 CURRENT SEASON</button>
+                <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold whitespace-nowrap" :class="[view === 'hall' ? 'tab-active' : '', isAdmin ? 'text-[9px]' : 'text-xs']">🏆 HALL OF FAME</button>
                 <button @click="view = 'lifetime'" class="tab tab-sm flex-1 font-bold whitespace-nowrap" :class="[view === 'lifetime' ? 'tab-active' : '', isAdmin ? 'text-[9px]' : 'text-xs']">🌟 LIFETIME</button>
                 <button @click="view = 'recent'" class="tab tab-sm flex-1 font-bold whitespace-nowrap" :class="[view === 'recent' ? 'tab-active' : '', isAdmin ? 'text-[9px]' : 'text-xs']">📰 ACTIVITY</button>
                 <button v-if="isAdmin" @click="view = 'report'" class="tab tab-sm flex-1 font-bold whitespace-nowrap text-[9px]" :class="{'tab-active !bg-info !text-black': view === 'report'}">📊 LOGIC</button>
