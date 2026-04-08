@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.9.1</title>
+    <title>ECBA Slam Jam 2.9.3</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -44,21 +44,19 @@
                     <button @click="changePoints(1)" class="btn btn-circle btn-outline btn-warning text-xl">+</button>
                 </div>
                 <div v-if="form.points < 0" class="form-control bg-error/10 p-3 rounded-xl border border-error/30 animate-pulse">
-                    <select v-model="form.targetId" class="select select-error select-sm w-full font-bold text-center">
-                        <option value="">-- Choose Victim --</option>
-                        <option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
-                    </select>
+                    <select v-model="form.targetId" class="select select-error select-sm w-full font-bold text-center"><option value="">-- Choose Victim --</option><option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option></select>
                 </div>
                 <button @click="submitScore" :disabled="submitting" :class="showSuccess ? 'btn-success' : 'btn-warning'" class="btn btn-block font-black uppercase tracking-widest mt-2 transition-all">
-                    <span v-if="submitting" class="loading loading-spinner"></span><span v-else-if="showSuccess">✅ Recorded!</span><span v-else>Submit</span>
+                    <span v-if="submitting" class="loading loading-spinner"></span><span v-else-if="showSuccess">✅ Recorded!</span><span v-else>Submit Score</span>
                 </button>
             </div>
         </div>
 
         <div :class="isReadOnly ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-8'" class="flex flex-col gap-4">
             <div class="tabs tabs-boxed bg-base-100 border border-white/5 p-1">
-                <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'monthly'}">📅 SEASON</button>
-                <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'hall'}">🏆 HALL</button>
+                <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'monthly'}">📅 CURRENT SEASON</button>
+                <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'hall'}">🏆 HALL OF FAME</button>
+                <button @click="view = 'lifetime'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'lifetime'}">🌟 LIFETIME</button>
                 <button @click="view = 'recent'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'recent'}">📰 ACTIVITY</button>
                 <button v-if="isAdmin" @click="view = 'report'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-info !text-black': view === 'report'}">📊 LOGIC</button>
                 <button v-if="isAdmin" @click="view = 'manage'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-error !text-black': view === 'manage'}">⚙️ ROSTER</button>
@@ -85,31 +83,24 @@
                         </tbody>
                     </table>
 
-                    <div v-if="view === 'report'" class="p-4 overflow-x-auto">
-                        <table class="table table-xs w-full font-mono text-[10px] uppercase">
-                            <thead class="text-info opacity-50"><tr><th>Player</th><th>P-Acts (10)</th><th>V-Pts (10)</th><th>Streak (15)</th><th>Max Day (25)</th></tr></thead>
-                            <tbody>
-                                <tr v-for="d in diagnostics" :key="d.name" class="border-b border-white/5">
-                                    <td class="font-bold text-white">{{ d.name }}</td>
-                                    <td :class="d.pActs >= 10 ? 'text-success' : 'opacity-40'">{{ d.pActs }}</td>
-                                    <td :class="d.vPts >= 10 ? 'text-success' : 'opacity-40'">{{ d.vPts }}</td>
-                                    <td :class="d.streak >= 15 ? 'text-success' : 'opacity-40'">{{ d.streak }}</td>
-                                    <td :class="d.dMax >= 25 ? 'text-success' : 'opacity-40'">{{ d.dMax }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div v-if="view === 'hall'" class="p-4 space-y-6">
+                        <div v-if="allTimeHigh.points > 0" class="bg-gradient-to-br from-warning/20 to-transparent p-6 rounded-2xl border border-warning/30 flex items-center justify-between shadow-inner">
+                            <div><h3 class="text-xs font-black uppercase text-warning tracking-[0.2em] mb-1">🌟 All-Time High Score</h3><p class="text-4xl font-black italic uppercase text-white tracking-tighter leading-none">{{ allTimeHigh.player }}</p></div>
+                            <div class="text-right"><span class="text-[10px] font-bold opacity-50 uppercase block">Single Season Record</span><span class="text-4xl font-black text-warning">{{ allTimeHigh.points }}</span></div>
+                        </div>
+                        <div class="divider text-warning font-bold text-[10px] tracking-widest">PAST CHAMPIONS</div>
+                        <div class="space-y-3">
+                            <div v-for="h in hallOfFame" :key="h.monthKey" class="flex items-center justify-between bg-base-200/50 p-4 rounded-xl border border-white/5 transition-all hover:bg-base-200">
+                                <div><div class="text-[10px] font-bold text-warning uppercase tracking-tighter">{{ h.label }}</div><div class="text-xl font-black italic uppercase text-white">{{ h.winner }}</div></div>
+                                <div class="text-right"><div class="text-[10px] font-bold opacity-40 uppercase">Final Score</div><div class="text-2xl font-black text-warning tracking-tighter">{{ h.pts }}</div></div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div v-if="view === 'hall'" class="p-4 space-y-4">
-                        <div v-if="allTimeHigh.points" class="bg-warning/10 p-4 rounded-xl border border-warning/20 flex justify-between">
-                            <div><div class="text-[8px] font-black uppercase text-warning tracking-[0.2em]">All-Time High</div><div class="text-2xl font-black italic text-white">{{ allTimeHigh.player }}</div></div>
-                            <div class="text-right"><div class="text-[8px] opacity-50 uppercase">Record</div><div class="text-2xl font-black text-warning">{{ allTimeHigh.points }}</div></div>
-                        </div>
-                        <div v-for="h in hallOfFame" :key="h.monthKey" class="flex justify-between bg-base-200/50 p-3 rounded-lg border border-white/5">
-                            <div><div class="text-[10px] font-bold text-warning">{{ h.label }}</div><div class="font-black text-white uppercase">{{ h.winner }}</div></div>
-                            <div class="text-right font-black text-warning">{{ h.pts }}</div>
-                        </div>
-                    </div>
+                    <table v-if="view === 'lifetime'" class="table table-zebra table-sm font-medium">
+                        <thead class="text-warning uppercase text-[10px] tracking-widest"><tr><th>Player</th><th class="text-right">All-Time Pts</th></tr></thead>
+                        <tbody><tr v-for="r in lifetime" :key="r.name" class="hover"><td class="font-black text-sm uppercase">{{ r.name }}</td><td class="text-right font-black text-warning text-lg tracking-tighter">{{ r.pts }}</td></tr></tbody>
+                    </table>
 
                     <ul v-if="view === 'recent'" class="p-4 space-y-2 max-h-[500px] overflow-y-auto">
                         <li v-for="(entry, idx) in logs" :key="idx" class="log-entry text-xs bg-base-200/50 py-2 rounded" :style="{ borderLeftColor: entry.color || (entry.isNeg ? '#ff4d4d' : '#333') }">
@@ -118,10 +109,20 @@
                         </li>
                     </ul>
 
-                    <div v-if="view === 'manage'" class="p-4 space-y-2">
-                        <div v-for="u in allUsers" :key="u.id" class="flex justify-between bg-base-200 p-2 rounded">
-                            <span class="font-bold uppercase text-xs" :class="{'opacity-30': !u.isActive}">{{ u.name }}</span>
-                            <button @click="toggleStatus(u.id, u.isActive)" class="btn btn-xs" :class="u.isActive ? 'btn-error' : 'btn-success'">{{ u.isActive ? 'Retire' : 'Activate' }}</button>
+                    <div v-if="view === 'report'" class="p-4 overflow-x-auto">
+                        <table class="table table-xs w-full font-mono text-[10px] uppercase">
+                            <thead class="text-info opacity-50"><tr><th>Player</th><th>P-Acts (10)</th><th>V-Pts (10)</th><th>Streak (15)</th><th>Max Day (25)</th></tr></thead>
+                            <tbody><tr v-for="d in diagnostics" :key="d.name" class="border-b border-white/5"><td class="font-bold text-white">{{ d.name }}</td><td :class="d.pActs >= 10 ? 'text-success' : 'opacity-40'">{{ d.pActs }}</td><td :class="d.vPts >= 10 ? 'text-success' : 'opacity-40'">{{ d.vPts }}</td><td :class="d.streak >= 15 ? 'text-success' : 'opacity-40'">{{ d.streak }}</td><td :class="d.dMax >= 25 ? 'text-success' : 'opacity-40'">{{ d.dMax }}</td></tr></tbody>
+                        </table>
+                    </div>
+
+                    <div v-if="view === 'manage'" class="p-4 space-y-4 max-h-[500px] overflow-y-auto">
+                        <h3 class="text-error font-bold uppercase tracking-widest text-[10px] mb-2">Player Management (Admin)</h3>
+                        <div class="grid grid-cols-1 gap-2">
+                            <div v-for="u in allUsers" :key="u.id" class="flex items-center justify-between bg-base-200/50 p-3 rounded-lg border border-white/5">
+                                <div class="flex flex-col"><span class="font-black text-sm uppercase" :class="{'opacity-30 line-through': !u.isActive}">{{ u.name }}</span><span class="text-[10px] font-bold" :class="u.isActive ? 'text-success' : 'text-error opacity-50'">{{ u.isActive ? 'Active' : 'Retired' }}</span></div>
+                                <div class="flex gap-2"><button @click="renameUser(u.id, u.name)" class="btn btn-xs btn-outline btn-warning">Rename</button><button @click="toggleStatus(u.id, u.isActive)" class="btn btn-xs btn-outline" :class="u.isActive ? 'btn-error' : 'btn-success'">{{ u.isActive ? 'Retire' : 'Activate' }}</button></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -130,14 +131,10 @@
     </div>
 
     <dialog id="achievement_modal" class="modal modal-bottom sm:modal-middle backdrop-blur-sm">
-        <div class="modal-box bg-base-100 border border-warning/30">
+        <div class="modal-box bg-base-100 border border-warning/30 shadow-2xl">
             <h3 class="font-black text-warning uppercase tracking-tighter text-2xl italic">{{ activeBadge.title }}</h3>
             <p class="py-4 font-bold text-slate-300 leading-relaxed">{{ activeBadge.desc }}</p>
-            <div class="modal-action">
-                <form method="dialog">
-                    <button class="btn btn-warning btn-sm font-black uppercase">Close</button>
-                </form>
-            </div>
+            <div class="modal-action"><form method="dialog"><button class="btn btn-warning btn-sm font-black uppercase">Close</button></form></div>
         </div>
         <form method="dialog" class="modal-backdrop"><button>close</button></form>
     </dialog>
@@ -148,7 +145,7 @@
 
     <div class="mt-12 flex flex-col items-center">
         <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" class="w-16 h-16 drop-shadow-lg">
-        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.1</p>
+        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.3</p>
     </div>
 </div>
 
@@ -160,7 +157,7 @@
     createApp({
         setup() {
             const submitting = vRef(false), showSuccess = vRef(false), view = vRef('monthly');
-            const monthly = vRef([]), hallOfFame = vRef([]), logs = vRef([]), diagnostics = vRef({});
+            const monthly = vRef([]), lifetime = vRef([]), hallOfFame = vRef([]), logs = vRef([]), diagnostics = vRef({});
             const allTimeHigh = vRef({ player: 'N/A', points: 0 }), overlay = vRef({ show: false, gif: '' });
             const activeBadge = vRef({ title: '', desc: '' });
             const form = vRef({ scorerId: '', newPlayer: '', targetId: '', points: 1 });
@@ -198,26 +195,28 @@
                     const sId = d.scorerId, tId = d.targetId || sId, pts = Number(d.points || 0);
                     
                     if (!hist[mk]) hist[mk] = {};
-                    if (pts > 0) { 
-                        lTot[sId] = (lTot[sId] || 0) + pts; 
-                        hist[mk][sId] = (hist[mk][sId] || 0) + pts;
-                    } else { 
-                        hist[mk][tId] = (hist[mk][tId] || 0) + pts; 
-                    }
+                    if (pts > 0) { lTot[sId] = (lTot[sId] || 0) + pts; hist[mk][sId] = (hist[mk][sId] || 0) + pts; }
+                    else { hist[mk][tId] = (hist[mk][tId] || 0) + pts; }
 
                     if (isM) {
                         lastS = sId; const time = dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         if (pts < 0) {
                             mTot[tId] = (mTot[tId] || 0) + pts; let brk = "";
-                            if (globalCurP === tId && globalCurS >= 2) { brk = " [STREAK BROKEN!]"; globalCurP = null; globalCurS = 0; }
+                            if (globalCurP === tId && globalCurS >= 2) { brk = ' <span class="text-error font-bold">[STREAK BROKEN!]</span>'; globalCurP = null; globalCurS = 0; }
                             lastAction[tId] = 'punished'; pCnt[sId] = (pCnt[sId] || 0) + 1; vCnt[tId] = (vCnt[tId] || 0) + Math.abs(pts);
-                            logArr.unshift({ id, time, text: `<b>${getName(sId)}</b> hit <b>${getName(tId)}</b> (${pts}) (Total: ${mTot[tId]})${brk}`, isNeg: true });
+                            logArr.unshift({ id, time, text: `<b>${getName(sId)}</b> punished <b>${getName(tId)}</b>! (${pts}) (Total: ${mTot[tId] || 0})${brk}`, isNeg: true });
                         } else {
                             mTot[sId] = (mTot[sId] || 0) + pts; dTot[sId+dt.toDateString()] = (dTot[sId+dt.toDateString()] || 0) + pts;
-                            lastAction[sId] = 'scored'; if (globalCurP === sId) globalCurS++; else { if (globalCurP && globalCurS >= 6) slay[sId] = (slay[sId] || 0) + 1; globalCurP = sId; globalCurS = 1; }
+                            lastAction[sId] = 'scored'; 
+                            if (globalCurP === sId) globalCurS++; else { if (globalCurP && globalCurS >= 6) slay[sId] = (slay[sId] || 0) + 1; globalCurP = sId; globalCurS = 1; }
                             mStr[sId] = Math.max(mStr[sId] || 0, globalCurS);
                             const t = TIERS[Math.min(globalCurS, 6)];
-                            logArr.unshift({ id, time, text: `<b>${getName(sId)}</b> scored ${pts} (Total: ${mTot[sId]})`, color: t ? t.color : null, streak: globalCurS > 1 ? globalCurS : null });
+                            logArr.unshift({ 
+                                id, time, 
+                                text: `<b>${getName(sId)}</b> scored ${pts}${globalCurS >= 2 ? ' and is ' + t.title + ' (Streak ' + globalCurS + ')' : ''}. (Total: ${mTot[sId] || 0})`, 
+                                color: t ? t.color : null, 
+                                streak: globalCurS > 1 ? globalCurS : null 
+                            });
                         }
                     }
                 });
@@ -230,9 +229,9 @@
 
                 allTimeHigh.value = high;
                 hallOfFame.value = Object.keys(hist).filter(mk => mk !== `${targetY}-${targetM}`).map(mk => {
-                    const parts = mk.split('-');
+                    const p = mk.split('-');
                     const top = Object.entries(hist[mk]).sort((a,b) => b[1] - a[1])[0];
-                    return top ? { monthKey: mk, label: new Date(parts[0], parts[1]).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: getName(top[0]), pts: top[1], sortKey: parseInt(parts[0])*12 + parseInt(parts[1]) } : null;
+                    return top ? { monthKey: mk, label: new Date(p[0], p[1]).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: getName(top[0]), pts: top[1], sortKey: parseInt(p[0])*12 + parseInt(p[1]) } : null;
                 }).filter(x => x).sort((a,b) => b.sortKey - a.sortKey);
 
                 const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0], topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
@@ -240,7 +239,6 @@
                     let title = ""; const others = Object.keys(mTot).filter(p => p !== uid);
                     const reaper = activeUsers.value.length >= 4 && others.length > 0 && others.every(p => lastAction[p] === 'punished');
                     const dMax = Math.max(...Object.keys(dTot).filter(k=>k.startsWith(uid)).map(k=>dTot[k]), 0);
-                    
                     if (pts >= CONFIG.PRAETORIAN) title = "Praetorian"; 
                     else if (pts >= CONFIG.CENTURION) title = "Centurion"; 
                     else if (reaper) title = "Grim Reaper";
@@ -249,10 +247,10 @@
                     else if (uid === topP && pCnt[uid] >= 10) title = "Punisher"; 
                     else if (uid === topV && vCnt[uid] >= 10) title = "The Punished";
                     else if (dMax >= 25) title = "Overachiever";
-
                     return { id: uid, name: getName(uid), pts, title, isPR: pts > (hb[uid] || 0) && (hb[uid] || 0) > 0, isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastS, icon: (globalCurP === uid) ? TIERS[Math.min(globalCurS, 6)]?.icon : '' };
                 }).sort((a,b)=>b.pts-a.pts);
 
+                lifetime.value = Object.entries(lTot).map(([uid, pts]) => ({ name: getName(uid), pts })).sort((a,b)=>b.pts-a.pts);
                 const diags = {};
                 Object.entries(mTot).forEach(([uid, pts]) => diags[uid] = { name: getName(uid), pActs: pCnt[uid] || 0, vPts: vCnt[uid] || 0, streak: mStr[uid] || 0, dMax: Math.max(...Object.keys(dTot).filter(k=>k.startsWith(uid)).map(k=>dTot[k]), 0) });
                 diagnostics.value = diags; logs.value = logArr.slice(0, 20);
@@ -289,14 +287,11 @@
 
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
             const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
-            const showAchievementDelta = (t) => {
-                activeBadge.value = { title: t, desc: TOOLTIPS[t] || "Achievement Details" };
-                document.getElementById('achievement_modal').showModal();
-            };
+            const showAchievementDelta = (t) => { activeBadge.value = { title: t, desc: TOOLTIPS[t] || "Details" }; document.getElementById('achievement_modal').showModal(); };
             const toggleStatus = async (id, s) => update(ref(fbDb, `users/${id}`), { isActive: !s });
             const renameUser = async (id, o) => { const n = prompt(`New name:`, o); if (n) update(ref(fbDb, `users/${id}`), { name: n }); };
 
-            return { view, allUsers, activeUsers, monthly, hallOfFame, logs, diagnostics, allTimeHigh, form, changePoints, submitScore, toggleStatus, renameUser, overlay, activeBadge, currentSeasonName, submitting, showSuccess, showAchievementDelta, isAdmin, isReadOnly };
+            return { view, allUsers, activeUsers, monthly, hallOfFame, lifetime, logs, diagnostics, allTimeHigh, form, changePoints, submitScore, toggleStatus, renameUser, overlay, activeBadge, currentSeasonName, submitting, showSuccess, showAchievementDelta, isAdmin, isReadOnly };
         }
     }).mount('#app');
 </script>
