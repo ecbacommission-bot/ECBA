@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.9</title>
+    <title>ECBA Slam Jam 2.9.1</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -44,7 +44,10 @@
                     <button @click="changePoints(1)" class="btn btn-circle btn-outline btn-warning text-xl">+</button>
                 </div>
                 <div v-if="form.points < 0" class="form-control bg-error/10 p-3 rounded-xl border border-error/30 animate-pulse">
-                    <select v-model="form.targetId" class="select select-error select-sm w-full font-bold text-center"><option value="">-- Choose Victim --</option><option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option></select>
+                    <select v-model="form.targetId" class="select select-error select-sm w-full font-bold text-center">
+                        <option value="">-- Choose Victim --</option>
+                        <option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
+                    </select>
                 </div>
                 <button @click="submitScore" :disabled="submitting" :class="showSuccess ? 'btn-success' : 'btn-warning'" class="btn btn-block font-black uppercase tracking-widest mt-2 transition-all">
                     <span v-if="submitting" class="loading loading-spinner"></span><span v-else-if="showSuccess">✅ Recorded!</span><span v-else>Submit</span>
@@ -52,7 +55,7 @@
             </div>
         </div>
 
-        <div :class="isReadOnly ? 'lg:col-span-12 max-w-4xl mx-auto' : 'lg:col-span-8'" class="flex flex-col gap-4">
+        <div :class="isReadOnly ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-8'" class="flex flex-col gap-4">
             <div class="tabs tabs-boxed bg-base-100 border border-white/5 p-1">
                 <button @click="view = 'monthly'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'monthly'}">📅 SEASON</button>
                 <button @click="view = 'hall'" class="tab tab-sm flex-1 font-bold" :class="{'tab-active !bg-warning !text-black': view === 'hall'}">🏆 HALL</button>
@@ -86,7 +89,7 @@
                         <table class="table table-xs w-full font-mono text-[10px] uppercase">
                             <thead class="text-info opacity-50"><tr><th>Player</th><th>P-Acts (10)</th><th>V-Pts (10)</th><th>Streak (15)</th><th>Max Day (25)</th></tr></thead>
                             <tbody>
-                                <tr v-for="d in diagnostics" class="border-b border-white/5">
+                                <tr v-for="d in diagnostics" :key="d.name" class="border-b border-white/5">
                                     <td class="font-bold text-white">{{ d.name }}</td>
                                     <td :class="d.pActs >= 10 ? 'text-success' : 'opacity-40'">{{ d.pActs }}</td>
                                     <td :class="d.vPts >= 10 ? 'text-success' : 'opacity-40'">{{ d.vPts }}</td>
@@ -96,27 +99,27 @@
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <div v-if="view === 'hall'" class="p-4 space-y-4">
                         <div v-if="allTimeHigh.points" class="bg-warning/10 p-4 rounded-xl border border-warning/20 flex justify-between">
                             <div><div class="text-[8px] font-black uppercase text-warning tracking-[0.2em]">All-Time High</div><div class="text-2xl font-black italic text-white">{{ allTimeHigh.player }}</div></div>
                             <div class="text-right"><div class="text-[8px] opacity-50 uppercase">Record</div><div class="text-2xl font-black text-warning">{{ allTimeHigh.points }}</div></div>
                         </div>
-                        <div v-for="h in hallOfFame" class="flex justify-between bg-base-200/50 p-3 rounded-lg border border-white/5">
+                        <div v-for="h in hallOfFame" :key="h.monthKey" class="flex justify-between bg-base-200/50 p-3 rounded-lg border border-white/5">
                             <div><div class="text-[10px] font-bold text-warning">{{ h.label }}</div><div class="font-black text-white uppercase">{{ h.winner }}</div></div>
                             <div class="text-right font-black text-warning">{{ h.pts }}</div>
                         </div>
                     </div>
 
                     <ul v-if="view === 'recent'" class="p-4 space-y-2 max-h-[500px] overflow-y-auto">
-                        <li v-for="entry in logs" class="log-entry text-xs bg-base-200/50 py-2 rounded" :style="{ borderLeftColor: entry.color || (entry.isNeg ? '#ff4d4d' : '#333') }">
+                        <li v-for="(entry, idx) in logs" :key="idx" class="log-entry text-xs bg-base-200/50 py-2 rounded" :style="{ borderLeftColor: entry.color || (entry.isNeg ? '#ff4d4d' : '#333') }">
                             <div class="flex justify-between px-2 text-[10px] opacity-50 font-bold"><span>{{ entry.time }}</span><span v-if="entry.streak">STREAK: {{ entry.streak }}</span></div>
                             <div class="px-2" v-html="entry.text"></div>
                         </li>
                     </ul>
 
                     <div v-if="view === 'manage'" class="p-4 space-y-2">
-                        <div v-for="u in allUsers" class="flex justify-between bg-base-200 p-2 rounded">
+                        <div v-for="u in allUsers" :key="u.id" class="flex justify-between bg-base-200 p-2 rounded">
                             <span class="font-bold uppercase text-xs" :class="{'opacity-30': !u.isActive}">{{ u.name }}</span>
                             <button @click="toggleStatus(u.id, u.isActive)" class="btn btn-xs" :class="u.isActive ? 'btn-error' : 'btn-success'">{{ u.isActive ? 'Retire' : 'Activate' }}</button>
                         </div>
@@ -136,9 +139,7 @@
                 </form>
             </div>
         </div>
-        <form method="dialog" class="modal-backdrop">
-            <button>close</button>
-        </form>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
     </dialog>
 
     <div v-if="overlay.show" @click="overlay.show = false" class="fixed inset-0 bg-black/90 z-[500] flex items-center justify-center p-4 backdrop-blur-xl">
@@ -147,7 +148,7 @@
 
     <div class="mt-12 flex flex-col items-center">
         <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" class="w-16 h-16 drop-shadow-lg">
-        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.build-{{BUILD_NUMBER}}</p>
+        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.1</p>
     </div>
 </div>
 
@@ -182,8 +183,10 @@
 
             const allUsers = computed(() => Object.entries(usersMap.value).map(([id, u]) => ({ id, name: u.name, isActive: u.isActive !== false })).sort((a,b) => a.name.localeCompare(b.name)));
             const activeUsers = computed(() => allUsers.value.filter(u => u.isActive));
+            const currentSeasonName = computed(() => new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
 
             const processData = () => {
+                if (!rawScores) return;
                 const getName = (id) => usersMap.value[id]?.name || "Unknown";
                 const mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, logArr = [], lastAction = {};
                 let globalCurP = null, globalCurS = 0, lastS = null;
@@ -193,9 +196,14 @@
                 sorted.forEach(([id, d]) => {
                     const dt = new Date(d.timestamp), mk = `${dt.getFullYear()}-${dt.getMonth()}`, isM = (dt.getMonth() === targetM && dt.getFullYear() === targetY);
                     const sId = d.scorerId, tId = d.targetId || sId, pts = Number(d.points || 0);
+                    
                     if (!hist[mk]) hist[mk] = {};
-                    if (pts > 0) { lTot[sId] = (lTot[sId] || 0) + pts; hist[mk][sId] = (hist[mk][sId] || 0) + pts; }
-                    else { hist[mk][tId] = (hist[mk][tId] || 0) + pts; }
+                    if (pts > 0) { 
+                        lTot[sId] = (lTot[sId] || 0) + pts; 
+                        hist[mk][sId] = (hist[mk][sId] || 0) + pts;
+                    } else { 
+                        hist[mk][tId] = (hist[mk][tId] || 0) + pts; 
+                    }
 
                     if (isM) {
                         lastS = sId; const time = dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
@@ -209,7 +217,7 @@
                             lastAction[sId] = 'scored'; if (globalCurP === sId) globalCurS++; else { if (globalCurP && globalCurS >= 6) slay[sId] = (slay[sId] || 0) + 1; globalCurP = sId; globalCurS = 1; }
                             mStr[sId] = Math.max(mStr[sId] || 0, globalCurS);
                             const t = TIERS[Math.min(globalCurS, 6)];
-                            logArr.unshift({ id, time, text: `<b>${getName(sId)}</b> scored ${pts} (Total: ${mTot[sId]})`, color: t?.color, streak: globalCurS > 1 ? globalCurS : null });
+                            logArr.unshift({ id, time, text: `<b>${getName(sId)}</b> scored ${pts} (Total: ${mTot[sId]})`, color: t ? t.color : null, streak: globalCurS > 1 ? globalCurS : null });
                         }
                     }
                 });
@@ -222,8 +230,9 @@
 
                 allTimeHigh.value = high;
                 hallOfFame.value = Object.keys(hist).filter(mk => mk !== `${targetY}-${targetM}`).map(mk => {
+                    const parts = mk.split('-');
                     const top = Object.entries(hist[mk]).sort((a,b) => b[1] - a[1])[0];
-                    return top ? { monthKey: mk, label: new Date(mk.split('-')[0], mk.split('-')[1]).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: getName(top[0]), pts: top[1], sortKey: parseInt(mk.split('-')[0])*12 + parseInt(mk.split('-')[1]) } : null;
+                    return top ? { monthKey: mk, label: new Date(parts[0], parts[1]).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: getName(top[0]), pts: top[1], sortKey: parseInt(parts[0])*12 + parseInt(parts[1]) } : null;
                 }).filter(x => x).sort((a,b) => b.sortKey - a.sortKey);
 
                 const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0], topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
@@ -264,21 +273,24 @@
                 let sid = form.value.scorerId; const nName = form.value.newPlayer.trim(); const pts = form.value.points;
                 if (!sid && !nName) return;
                 submitting.value = true;
-                if (nName) {
-                    const ex = Object.entries(usersMap.value).find(([id, u]) => u.name.toLowerCase() === nName.toLowerCase());
-                    if (ex) sid = ex[0]; else { const nr = push(usersRef); sid = nr.key; await set(nr, { name: nName, isActive: true }); }
-                }
-                let tid = pts < 0 ? form.value.targetId : sid;
-                if (pts < 0 && !tid) { submitting.value = false; return; }
-                await push(scoresRef, { targetId: tid, scorerId: sid, points: pts, timestamp: serverTimestamp() });
-                showSuccess.value = true; form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
-                setTimeout(() => showSuccess.value = false, 2000); submitting.value = false;
+                try {
+                    if (nName) {
+                        const ex = Object.entries(usersMap.value).find(([id, u]) => u.name.toLowerCase() === nName.toLowerCase());
+                        if (ex) sid = ex[0]; else { const nr = push(usersRef); sid = nr.key; await set(nr, { name: nName, isActive: true }); }
+                    }
+                    let tid = pts < 0 ? form.value.targetId : sid;
+                    if (pts < 0 && !tid) { submitting.value = false; return; }
+                    await push(scoresRef, { targetId: tid, scorerId: sid, points: pts, timestamp: serverTimestamp() });
+                    showSuccess.value = true; form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
+                    setTimeout(() => showSuccess.value = false, 2000);
+                } catch(e) { console.error(e); }
+                submitting.value = false;
             };
 
             const changePoints = (d) => { form.value.points += d; if (form.value.points === 0) form.value.points = d > 0 ? 1 : -1; };
             const playAnim = (u) => { overlay.value = { show: true, gif: u }; setTimeout(() => overlay.value.show = false, 5000); };
             const showAchievementDelta = (t) => {
-                activeBadge.value = { title: t, desc: TOOLTIPS[t] };
+                activeBadge.value = { title: t, desc: TOOLTIPS[t] || "Achievement Details" };
                 document.getElementById('achievement_modal').showModal();
             };
             const toggleStatus = async (id, s) => update(ref(fbDb, `users/${id}`), { isActive: !s });
