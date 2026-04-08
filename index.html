@@ -147,7 +147,7 @@
 
     <div class="mt-12 flex flex-col items-center">
         <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" class="w-16 h-16 drop-shadow-lg">
-        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">Version 2.9</p>
+        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.build-{{BUILD_NUMBER}}</p>
     </div>
 </div>
 
@@ -169,6 +169,9 @@
             const CONFIG = { JUGGERNAUT: 15, SLAYER: 3, GODLIKE: 6, CENTURION: 100, PRAETORIAN: 150, OVERACHIEVER: 25 };
             const TIERS = {
                 2: { icon: '🔥', title: 'ON FIRE!', color: '#fb923c', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
+                3: { icon: '💥', title: 'LEGENDARY!', color: '#facc15', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
+                4: { icon: '👑', title: 'EPIC!', color: '#4ade80', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
+                5: { icon: '⚡', title: 'UNSTOPPABLE!', color: '#60a5fa', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
                 6: { icon: '🌀', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
             };
             const TOOLTIPS = { "Praetorian": "Reached 150+ points.", "Centurion": "Reached 100+ points.", "Grim Reaper": "Skulled everyone (Min 4 players).", "Punisher": "Top villain (Min 10 acts).", "The Punished": "Top victim (Min 10 pts).", "Juggernaut": "Streak of 15+.", "Godslayer": "Broke 3 Godlike streaks.", "Overachiever": "25+ points in a single day." };
@@ -205,7 +208,8 @@
                             mTot[sId] = (mTot[sId] || 0) + pts; dTot[sId+dt.toDateString()] = (dTot[sId+dt.toDateString()] || 0) + pts;
                             lastAction[sId] = 'scored'; if (globalCurP === sId) globalCurS++; else { if (globalCurP && globalCurS >= 6) slay[sId] = (slay[sId] || 0) + 1; globalCurP = sId; globalCurS = 1; }
                             mStr[sId] = Math.max(mStr[sId] || 0, globalCurS);
-                            logArr.unshift({ id, time, text: `<b>${getName(sId)}</b> scored ${pts} (Total: ${mTot[sId]})`, color: TIERS[Math.min(globalCurS, 6)]?.color, streak: globalCurS > 1 ? globalCurS : null });
+                            const t = TIERS[Math.min(globalCurS, 6)];
+                            logArr.unshift({ id, time, text: `<b>${getName(sId)}</b> scored ${pts} (Total: ${mTot[sId]})`, color: t?.color, streak: globalCurS > 1 ? globalCurS : null });
                         }
                     }
                 });
