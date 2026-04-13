@@ -12,7 +12,10 @@
         .log-entry { font-family: 'JetBrains Mono', monospace; border-left-width: 4px; padding-left: 0.75rem; }
         .achievement-badge { @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px] bg-transparent p-0 cursor-pointer transition-transform; color: #FBBD23; }
         .achievement-badge:active { transform: scale(0.9); opacity: 0.8; }
-        .pr-badge { @apply badge badge-error badge-xs font-black p-1 text-[8px] italic; animation: pulse-red 2s infinite; }
+        .pr-badge { 
+            @apply badge badge-error badge-xs font-black p-1 text-[8px] italic text-white border-none; 
+            animation: pulse-red 2s infinite; 
+        }
         @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
         @keyframes flash-score { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); color: white; } }
         .animate-score-flash { animation: flash-score 1.5s ease-in-out infinite; }
