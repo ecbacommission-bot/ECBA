@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.9.9</title>
+    <title>ECBA Slam Jam 2.0.0</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -13,10 +13,12 @@
         .achievement-badge { @apply badge badge-sm italic gap-1 font-bold border-none uppercase text-[10px] bg-transparent p-0 cursor-pointer transition-transform; color: #FBBD23; }
         .achievement-badge:active { transform: scale(0.9); opacity: 0.8; }
         .pr-badge { 
-            @apply badge badge-error badge-xs font-black p-1 text-[8px] italic text-white border-none; 
-            animation: pulse-red 2s infinite; 
+            @apply font-black italic uppercase;
+            color: #ff4d4d;
+            font-size: 10px;
+            animation: blink-red 0.8s step-end infinite; 
         }
-        @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        @keyframes blink-red { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes flash-score { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); color: white; } }
         .animate-score-flash { animation: flash-score 1.5s ease-in-out infinite; }
 
@@ -86,7 +88,7 @@
                                     </div>
                                 </td>
                                 <td class="text-right font-black text-warning text-lg tracking-tighter" :class="{'animate-score-flash': r.justUpdated}">
-                                    <span v-if="r.isPR" class="pr-badge">PR</span> {{ r.pts }}
+                                    {{ r.pts }} <span v-if="r.isPR" class="pr-badge">PR</span>
                                 </td>
                             </tr>
                         </tbody>
@@ -160,7 +162,7 @@
              onclick="window.location.reload()"
              class="w-16 h-16 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95" 
              alt="ECBA Logo">
-        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.9.9</p>
+        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.0.0</p>
     </div>
 </div>
 
