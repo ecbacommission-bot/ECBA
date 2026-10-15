@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.1.0</title>
+    <title>ECBA Slam Jam 2.2.0</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -25,7 +25,7 @@
             animation: blink-red 2.0s step-end infinite; 
         }
         @keyframes blink-red { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        @keyframes flash-score { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; color: white; } }
+        @keyframes flash-score { 0%, 100% { opacity: 1; color: #FBBD23; } 50% { opacity: 1; color: #FFF3B0; } }
         .animate-score-flash { animation: flash-score 1.5s ease-in-out infinite; }
         @keyframes flash-penalty { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .animate-penalty-flash { color: #ff4d4d; animation: flash-penalty 1.5s ease-in-out infinite; }
@@ -36,6 +36,8 @@
             color: #000000 !important;
         }
         input, select, textarea { font-size: 16px !important; }
+        /* Keep typed text large enough to avoid Safari's input-focus zoom. */
+        input[aria-label="Or add new name"]::placeholder { font-size: 13px; }
         .achievement-badge { font-size: 10px; font-weight: 800; font-style: italic; text-transform: uppercase; background: transparent; border: 0; padding: 0; cursor: pointer; }
         .score-display { display: inline-grid; grid-template-columns: 3.5rem 3rem 1.25rem; align-items: baseline; gap: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
         .score-display > span { text-align: right; }
@@ -53,7 +55,7 @@
             #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 12px 16px; }
             #app > header, .office-toolbar, .app-footer, #app > [role="status"], #app > [role="alert"] { flex-shrink: 0; }
             #app > header { padding: 12px 0 8px; }
-            #app > header h1 { font-size: 42px; line-height: 1; }
+            #app > header h1 { font-size: 60px; line-height: 1; }
             .office-toolbar { margin-bottom: 8px; }
             .kiosk-grid { flex: 1; min-height: 0; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
             [data-testid="entry-card"] { grid-column: span 4; min-height: 0; overflow-y: auto; }
@@ -63,8 +65,9 @@
             [data-testid="scoreboard-column"] > .tabs { flex-shrink: 0; }
             [data-testid="scoreboard-column"] > .card { min-height: 0; overflow-y: auto; }
             #panel-recent { max-height: none; overflow-y: visible; }
-            .app-footer { margin-top: 6px; flex-direction: row; justify-content: center; gap: 8px; }
-            .app-footer img { width: 24px; height: 24px; }
+            .app-footer { margin-top: 6px; flex-direction: column; justify-content: center; gap: 0; }
+            .app-footer img { width: 44px; height: 44px; }
+            .app-footer p { margin-top: 2px; }
         }
         @media (prefers-reduced-motion: reduce) { .animate-score-flash, .animate-penalty-flash, .pr-badge, .animate-pulse { animation: none; } }
     </style>
@@ -89,7 +92,7 @@
     <div class="kiosk-grid grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch" :class="{readonly: isReadOnly}">
         <div v-if="!isReadOnly" data-testid="entry-card" class="lg:col-span-4 card bg-base-100 shadow-2xl border border-white/5">
             <form @submit.prevent="submitScore" class="card-body p-6 gap-4 justify-start" aria-label="Submit score">
-                <fieldset :disabled="submitting || !dataReady" class="contents">
+                <fieldset :disabled="!dataReady" class="contents">
                 <h2 class="text-center text-warning uppercase text-[10px] tracking-widest mb-2 font-bold">Submit Entry</h2>
                 <div class="form-control">
                     <select v-model="form.scorerId" aria-label="Choose player" class="select select-bordered select-warning w-full text-center font-bold">
@@ -259,11 +262,12 @@
     </div>
 
     <div class="app-footer mt-12 flex flex-col items-center">
-        <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png" 
-             onclick="window.location.reload()"
-             class="w-16 h-16 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95" 
-             alt="ECBA Logo">
-        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.1.0</p>
+        <button type="button" onclick="window.location.reload()" aria-label="Refresh scoreboard" class="inline-flex items-center justify-center min-w-[44px] min-h-[44px]">
+            <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png"
+                 class="w-16 h-16 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95"
+                 alt="ECBA Logo">
+        </button>
+        <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.2.0</p>
     </div>
 </div>
 
@@ -486,6 +490,25 @@
                 scoresReady = true; dataReady.value = usersReady && scoresReady && !dataError.value;
             };
             const subscriptionError = error => { if (!disposed) { dataReady.value = false; dataError.value = `Unable to load league data: ${error.message || 'permission or connection error'}. Reload to retry.`; } };
+            // Safari can still handle native pinch/double-tap gestures despite
+            // touch-action. Cancel zoom gestures, not ordinary one-finger scrolling.
+            const gestureOptions = { passive: false, capture: true };
+            const blockGestureZoom = event => { if (event.cancelable) event.preventDefault(); };
+            const blockMultiTouch = event => {
+                if (event.touches?.length > 1) blockGestureZoom(event);
+            };
+            let lastTap = null;
+            const blockDoubleTap = event => {
+                if (event.touches?.length || event.changedTouches?.length !== 1) { lastTap = null; return; }
+                const touch = event.changedTouches[0], now = Date.now();
+                const doubleTap = lastTap && now - lastTap.time < 350 && Math.hypot(touch.clientX - lastTap.x, touch.clientY - lastTap.y) < 30;
+                lastTap = { time: now, x: touch.clientX, y: touch.clientY };
+                if (!doubleTap) return;
+                blockGestureZoom(event);
+                // Canceling touchend suppresses its synthetic click. Keep rapid
+                // score-button taps working, but do not synthesize input/select clicks.
+                event.target?.closest?.('button')?.click();
+            };
             onMounted(() => {
                 unsubscribeUsers = onValue(usersRef, s => { if (disposed) return; usersMap.value = s.val() || {}; usersReady = true; dataReady.value = usersReady && scoresReady && !dataError.value; processData(); }, subscriptionError);
                 unsubscribeScores = onValue(scoresRef, receiveScores, subscriptionError);
@@ -493,6 +516,12 @@
                 seasonTimer = setInterval(checkSeason, 1000);
                 document.addEventListener('pointerdown', outsideClick);
                 document.addEventListener('visibilitychange', checkSeason);
+                document.addEventListener('gesturestart', blockGestureZoom, gestureOptions);
+                document.addEventListener('gesturechange', blockGestureZoom, gestureOptions);
+                document.addEventListener('touchstart', blockMultiTouch, gestureOptions);
+                document.addEventListener('touchmove', blockMultiTouch, gestureOptions);
+                document.addEventListener('touchend', blockDoubleTap, gestureOptions);
+                document.addEventListener('dblclick', blockGestureZoom, gestureOptions);
                 window.addEventListener('focus', checkSeason);
                 window.addEventListener('pageshow', checkSeason);
             });
@@ -503,6 +532,12 @@
                 unsubscribeScores?.();
                 document.removeEventListener('pointerdown', outsideClick);
                 document.removeEventListener('visibilitychange', checkSeason);
+                document.removeEventListener('gesturestart', blockGestureZoom, gestureOptions);
+                document.removeEventListener('gesturechange', blockGestureZoom, gestureOptions);
+                document.removeEventListener('touchstart', blockMultiTouch, gestureOptions);
+                document.removeEventListener('touchmove', blockMultiTouch, gestureOptions);
+                document.removeEventListener('touchend', blockDoubleTap, gestureOptions);
+                document.removeEventListener('dblclick', blockGestureZoom, gestureOptions);
                 window.removeEventListener('focus', checkSeason);
                 window.removeEventListener('pageshow', checkSeason);
             });
@@ -520,7 +555,7 @@
                 const next = value + delta;
                 return Number.isSafeInteger(next) ? next === 0 ? delta : next : value;
             };
-            const changePoints = delta => { if (!isReadOnly.value && !submitting.value) form.value.points = stepPoints(form.value.points, delta); };
+            const changePoints = delta => { if (!isReadOnly.value && dataReady.value) form.value.points = stepPoints(form.value.points, delta); };
             // Keep a created player ID on a failed score write, so retry never creates
             // a second player even if the users subscription has not caught up yet.
             let createdPlayer = null;
@@ -555,7 +590,12 @@
                     localWrites.delete(scoreRef.key);
                     if (validScore(rawScores[scoreRef.key])) celebrateEntry(scoreRef.key);
                     else pendingScores.add(scoreRef.key); // Server time may resolve after the write promise.
-                    createdPlayer = null; showSuccess.value = true; form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
+                    createdPlayer = null; showSuccess.value = true;
+                    // The submitted draft is immutable; never clear a next entry
+                    // the operator has started preparing during confirmation.
+                    if (Object.keys(draft).every(key => form.value[key] === draft[key])) {
+                        form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
+                    }
                     status.value = 'Score recorded.';
                     clearTimeout(successTimer); successTimer = setTimeout(() => showSuccess.value = false, 2000);
                 } catch (error) { if (!disposed) formError.value = `Score was not recorded: ${error.message || 'write failed'}. Your entry has been kept.`; }
