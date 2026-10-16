@@ -466,15 +466,24 @@
             };
             // First snapshot is history, not a new event. Remember every observed key,
             // including pending server timestamps, so a later edit cannot replay it.
-            const observedScores = new Set(), pendingScores = new Set(), localWrites = new Set();
+            const observedScores = new Set(), pendingScores = new Set(), localWrites = new Set(), deferredCelebrations = new Set();
             let initialScores = true;
             const celebrateEntry = id => {
                 const d = rawScores[id], shown = presentations.value[id];
                 if (!validScore(d) || d.voided || d.revision || Object.keys(d.editHistory || {}).length || d.points === 0 || !shown) return;
                 const age = Date.now() - d.timestamp;
                 if (age < 0 || age >= 10000 || getCalendarDate(new Date(d.timestamp)).season !== processedSeason) return;
+                if (disposed) return;
+                if (submitting.value || showSuccess.value) { deferredCelebrations.add(id); return; }
                 if (d.points < 0) playAnim('https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif');
                 else if (shown.streak >= 2) playAnim(TIERS[Math.min(shown.streak, 6)].gif);
+            };
+            const flushCelebrations = () => {
+                if (disposed || submitting.value || showSuccess.value) return;
+                const ids = [...deferredCelebrations];
+                deferredCelebrations.clear();
+                // Revalidate against the latest snapshot in case an entry was corrected.
+                ids.forEach(celebrateEntry);
             };
             const receiveScores = snapshot => {
                 if (disposed) return;
@@ -529,6 +538,7 @@
             });
             onUnmounted(() => {
                 disposed = true;
+                deferredCelebrations.clear();
                 clearInterval(seasonTimer); clearTimeout(successTimer); clearTimeout(overlayTimer);
                 unsubscribeUsers?.();
                 unsubscribeScores?.();
@@ -590,18 +600,23 @@
                     if (disposed) return;
                     // Firebase's resolved snapshot is authoritative, never a local draft.
                     localWrites.delete(scoreRef.key);
+                    createdPlayer = null; showSuccess.value = true;
                     if (validScore(rawScores[scoreRef.key])) celebrateEntry(scoreRef.key);
                     else pendingScores.add(scoreRef.key); // Server time may resolve after the write promise.
-                    createdPlayer = null; showSuccess.value = true;
                     // The submitted draft is immutable; never clear a next entry
                     // the operator has started preparing during confirmation.
                     if (Object.keys(draft).every(key => form.value[key] === draft[key])) {
                         form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
                     }
                     status.value = 'Score recorded.';
-                    clearTimeout(successTimer); successTimer = setTimeout(() => showSuccess.value = false, 2000);
+                    clearTimeout(successTimer);
+                    successTimer = setTimeout(() => {
+                        if (disposed) return;
+                        showSuccess.value = false;
+                        flushCelebrations();
+                    }, 2000);
                 } catch (error) { if (!disposed) formError.value = `Score was not recorded: ${error.message || 'write failed'}. Your entry has been kept.`; }
-                finally { submitting.value = false; }
+                finally { submitting.value = false; flushCelebrations(); }
             };
 
             const menuOpen = vRef(false), menuRoot = vRef(null), menuButton = vRef(null);
