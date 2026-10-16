@@ -65,8 +65,7 @@
             .kiosk-grid.commissioner { max-height: calc(100dvh - 270px); }
             .kiosk-grid > [data-testid="scoreboard-column"] { display: contents; }
             .kiosk-grid > [data-testid="scoreboard-column"] > .tabs { grid-column: 1 / -1; grid-row: 1; }
-            [data-testid="entry-card"] { grid-column: 1 / span 4; grid-row: 2; min-height: 0; max-height: calc(100dvh - 220px); overflow-y: auto; }
-            .kiosk-grid.commissioner [data-testid="entry-card"] { max-height: calc(100dvh - 270px); }
+            [data-testid="entry-card"] { grid-column: 1 / span 4; grid-row: 2; min-height: max-content; max-height: none; overflow: visible; }
             [data-testid="entry-card"] > form { flex: none; padding: 20px; gap: 12px; }
             .kiosk-grid > [data-testid="scoreboard-column"] > .card { grid-column: 5 / -1; grid-row: 2; min-width: 0; min-height: 0; max-height: calc(100dvh - 220px); overflow-y: auto; }
             .kiosk-grid.commissioner > [data-testid="scoreboard-column"] > .card { max-height: calc(100dvh - 270px); }
