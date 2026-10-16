@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.2.0</title>
+    <title>ECBA Slam Jam 2.3.0</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -61,13 +61,16 @@
             #app > header { padding: 12px 0 8px; margin-bottom: 16px; }
             #app > header h1 { font-size: 60px; line-height: 1; }
             .office-toolbar { margin-bottom: 8px; }
-            .kiosk-grid { flex: 1; min-height: 0; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
-            [data-testid="entry-card"] { grid-column: span 4; min-height: 0; overflow-y: auto; }
+            .kiosk-grid { flex: 0 0 auto; min-height: 0; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto; align-content: start; gap: 16px; max-height: calc(100dvh - 220px); }
+            .kiosk-grid.commissioner { max-height: calc(100dvh - 270px); }
+            .kiosk-grid > [data-testid="scoreboard-column"] { display: contents; }
+            .kiosk-grid > [data-testid="scoreboard-column"] > .tabs { grid-column: 1 / -1; grid-row: 1; }
+            [data-testid="entry-card"] { grid-column: 1 / span 4; grid-row: 2; min-height: 0; max-height: calc(100dvh - 220px); overflow-y: auto; }
+            .kiosk-grid.commissioner [data-testid="entry-card"] { max-height: calc(100dvh - 270px); }
             [data-testid="entry-card"] > form { flex: none; padding: 20px; gap: 12px; }
-            [data-testid="scoreboard-column"] { grid-column: span 8; min-height: 0; gap: 10px; }
-            .kiosk-grid.readonly [data-testid="scoreboard-column"] { grid-column: span 12; }
-            [data-testid="scoreboard-column"] > .tabs { flex-shrink: 0; }
-            [data-testid="scoreboard-column"] > .card { min-height: 0; overflow-y: auto; }
+            .kiosk-grid > [data-testid="scoreboard-column"] > .card { grid-column: 5 / -1; grid-row: 2; min-width: 0; min-height: 0; max-height: calc(100dvh - 220px); overflow-y: auto; }
+            .kiosk-grid.commissioner > [data-testid="scoreboard-column"] > .card { max-height: calc(100dvh - 270px); }
+            .kiosk-grid.readonly > [data-testid="scoreboard-column"] > .card { grid-column: 1 / -1; max-width: 56rem; width: 100%; justify-self: center; }
             #panel-recent { max-height: none; overflow-y: visible; }
             .app-footer { margin: 6px 0 12px; flex-direction: column; justify-content: center; gap: 0; flex-shrink: 0; }
             .app-footer img { width: 88px; height: 88px; }
@@ -93,7 +96,7 @@
         </ul>
     </div>
     <p v-if="dataError" class="text-error text-xs mb-2" role="alert">{{ dataError }}</p>
-    <div class="kiosk-grid grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch" :class="{readonly: isReadOnly}">
+    <div class="kiosk-grid grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch" :class="{readonly: isReadOnly, commissioner: canAdmin}">
         <div v-if="!isReadOnly" data-testid="entry-card" class="lg:col-span-4 card bg-base-100 shadow-2xl border border-white/5">
             <form @submit.prevent="submitScore" class="card-body p-6 gap-4 justify-start" aria-label="Submit score">
                 <fieldset :disabled="!dataReady" class="contents">
@@ -115,7 +118,7 @@
                     <select v-model="form.targetId" aria-label="Choose victim" class="select select-error select-sm w-full font-bold text-center"><option value="">-- Choose Victim --</option><option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option></select>
                 </div>
                 <p v-if="formError" class="text-error text-xs" role="alert">{{ formError }}</p>
-                <button type="submit" :disabled="submitting || !dataReady" :class="showSuccess ? 'btn-success' : 'btn-warning'" class="btn btn-block font-black uppercase tracking-widest mt-2 transition-all">
+                <button type="submit" :disabled="submitting || scoreWritePending || !dataReady" :class="showSuccess ? 'btn-success' : 'btn-warning'" class="btn btn-block font-black uppercase tracking-widest mt-2 transition-all">
                     <span v-if="submitting" class="loading loading-spinner"></span><span v-else-if="showSuccess">✅ Recorded!</span><span v-else>Submit Score</span>
                 </button>
                 </fieldset>
@@ -126,7 +129,7 @@
                          class="w-32 h-32 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95"
                          alt="ECBA Logo">
                 </button>
-                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.2.0</p>
+                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.3.0</p>
             </div>
         </div>
 
@@ -135,7 +138,7 @@
                 <button v-for="tab in tabs" :key="tab.id" :id="'tab-' + tab.id" type="button" role="tab" :aria-selected="view === tab.id" :aria-controls="'panel-' + tab.id" :tabindex="view === tab.id ? 0 : -1" @click="view = tab.id" @keydown="tabKeys($event, tab.id)" class="tab tab-sm flex-1 font-bold" :class="{'tab-active': view === tab.id, 'text-[10px]': isAdmin, 'text-xs': !isAdmin}">{{ tab.label }}</button>
             </div>
 
-            <div class="card bg-base-100 shadow-xl border border-white/5 min-h-[300px] flex-1">
+            <div class="card bg-base-100 shadow-xl border border-white/5">
                 <div class="p-2">
                     <div v-if="view === 'monthly'" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 pt-2 pb-3 text-[11px] font-bold">
                         <span class="text-warning uppercase tracking-wider">{{ currentSeasonName }}</span>
@@ -282,7 +285,7 @@
 
     createApp({
         setup() {
-            const submitting = vRef(false), showSuccess = vRef(false), view = vRef('monthly');
+            const submitting = vRef(false), scoreWritePending = vRef(false), showSuccess = vRef(false), view = vRef('monthly');
             const monthly = vRef([]), lifetime = vRef([]), hallOfFame = vRef([]), logs = vRef([]), diagnostics = vRef({});
             const allTimeHigh = vRef({ player: 'N/A', points: 0 }), overlay = vRef({ show: false, gif: '' });
             const activeBadge = vRef({ title: '', desc: '' });
@@ -558,6 +561,7 @@
             onUnmounted(() => {
                 disposed = true;
                 deferredCelebrations.clear();
+                showSuccess.value = false;
                 clearInterval(seasonTimer); clearTimeout(successTimer); clearTimeout(overlayTimer);
                 unsubscribeUsers?.();
                 unsubscribeScores?.();
@@ -587,11 +591,12 @@
                 return Number.isSafeInteger(next) ? next === 0 ? delta : next : value;
             };
             const changePoints = delta => { if (!isReadOnly.value && dataReady.value) form.value.points = stepPoints(form.value.points, delta); };
-            // Keep a created player ID on a failed score write, so retry never creates
-            // a second player even if the users subscription has not caught up yet.
-            let createdPlayer = null;
+            // A score can be posted while its new player's record is still saving.
+            // Reuse that pending write when another entry selects the same player.
+            const pendingUserWrites = new Map();
+            let submissionGeneration = 0;
             const submitScore = async () => {
-                if (isReadOnly.value || submitting.value || !dataReady.value) return;
+                if (isReadOnly.value || submitting.value || scoreWritePending.value || !dataReady.value) return;
                 const draft = { ...form.value }, name = draft.newPlayer.trim(), pts = draft.points;
                 let sid = draft.scorerId;
                 formError.value = '';
@@ -603,15 +608,17 @@
                 if (existing) sid = existing.id;
                 if (!name && !activeUsers.value.some(u => u.id === sid)) return;
                 submitting.value = true;
-                let scoreRef = null, optimisticUserId = null;
+                let scoreRef = null, optimisticUserId = null, userWrite = null, userWriteSucceeded = false;
+                const generation = ++submissionGeneration;
                 try {
                     if (name && !existing) {
-                        if (!createdPlayer || createdPlayer.name !== name) createdPlayer = { name, id: push(usersRef).key, saved: false };
-                        sid = createdPlayer.id;
-                        if (!createdPlayer.saved) {
-                            optimisticUserId = sid;
-                            optimisticUsers.value = { ...optimisticUsers.value, [sid]: { name, isActive: true } };
-                        }
+                        sid = push(usersRef).key;
+                        optimisticUserId = sid;
+                        optimisticUsers.value = { ...optimisticUsers.value, [sid]: { name, isActive: true } };
+                        userWrite = Promise.resolve().then(() => set(ref(fbDb, `users/${sid}`), { name, isActive: true }));
+                        pendingUserWrites.set(sid, userWrite);
+                    } else if (sid) {
+                        userWrite = pendingUserWrites.get(sid) || null;
                     }
                     scoreRef = push(scoresRef);
                     optimisticScores.value = { ...optimisticScores.value, [scoreRef.key]: {
@@ -623,42 +630,58 @@
                     if (Object.keys(draft).every(key => form.value[key] === draft[key])) {
                         form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
                     }
+                    // Acknowledge the tap immediately; persistence continues below.
+                    showSuccess.value = true;
+                    scoreWritePending.value = true;
+                    clearTimeout(successTimer);
+                    successTimer = setTimeout(() => {
+                        if (disposed || generation !== submissionGeneration) return;
+                        showSuccess.value = false;
+                        flushCelebrations();
+                    }, 2000);
+                    submitting.value = false;
                     localWrites.add(scoreRef.key);
-                    if (name && !existing && !createdPlayer.saved) {
-                        await set(ref(fbDb, `users/${sid}`), { name, isActive: true });
-                        createdPlayer.saved = true;
-                    }
+                    if (userWrite) { await userWrite; userWriteSucceeded = true; }
+                    if (optimisticUserId && pendingUserWrites.get(optimisticUserId) === userWrite) pendingUserWrites.delete(optimisticUserId);
                     await set(scoreRef, { targetId: pts < 0 ? draft.targetId : sid, scorerId: sid, points: pts, timestamp: serverTimestamp() });
                     if (disposed) return;
                     // Firebase's resolved snapshot is authoritative, never a local draft.
                     localWrites.delete(scoreRef.key);
-                    createdPlayer = null; showSuccess.value = true;
                     if (validScore(rawScores[scoreRef.key])) celebrateEntry(scoreRef.key);
                     else pendingScores.add(scoreRef.key); // Server time may resolve after the write promise.
                     status.value = 'Score recorded.';
-                    clearTimeout(successTimer);
-                    successTimer = setTimeout(() => {
-                        if (disposed) return;
-                        showSuccess.value = false;
-                        flushCelebrations();
-                    }, 2000);
                 } catch (error) {
                     if (scoreRef) {
                         localWrites.delete(scoreRef.key);
-                        const remainingScores = { ...optimisticScores.value };
-                        delete remainingScores[scoreRef.key]; optimisticScores.value = remainingScores;
+                        // A delivered Firebase record is authoritative even if the
+                        // write promise subsequently reports a transport error.
+                        if (!validScore(rawScores[scoreRef.key])) {
+                            const remainingScores = { ...optimisticScores.value };
+                            delete remainingScores[scoreRef.key]; optimisticScores.value = remainingScores;
+                        } else {
+                            pendingScores.add(scoreRef.key);
+                        }
                     }
-                    if (optimisticUserId && !createdPlayer?.saved && !usersMap.value[optimisticUserId]) {
+                    if (optimisticUserId && pendingUserWrites.get(optimisticUserId) === userWrite) pendingUserWrites.delete(optimisticUserId);
+                    if (optimisticUserId && !userWriteSucceeded && !usersMap.value[optimisticUserId] && !pendingUserWrites.has(optimisticUserId)) {
                         const remainingUsers = { ...optimisticUsers.value };
                         delete remainingUsers[optimisticUserId]; optimisticUsers.value = remainingUsers;
                     }
                     processData();
                     // Restore the failed draft only if the operator has not begun
                     // preparing a different entry while the write was in flight.
-                    if (Object.values(form.value).every((value, index) => value === ['', '', '', 1][index])) form.value = draft;
-                    if (!disposed) formError.value = `Score was not recorded: ${error.message || 'write failed'}. Your entry has been kept.`;
+                    if (generation === submissionGeneration && Object.values(form.value).every((value, index) => value === ['', '', '', 1][index])) form.value = draft;
+                    if (!validScore(rawScores[scoreRef?.key]) && !disposed) {
+                        if (generation === submissionGeneration) {
+                            clearTimeout(successTimer);
+                            showSuccess.value = false;
+                        }
+                        formError.value = `Score was not recorded: ${error.message || 'write failed'}. Your entry has been kept.`;
+                    } else if (!disposed && validScore(rawScores[scoreRef?.key])) {
+                        if (generation === submissionGeneration) flushCelebrations();
+                    }
                 }
-                finally { submitting.value = false; flushCelebrations(); }
+                finally { submitting.value = false; scoreWritePending.value = false; flushCelebrations(); }
             };
 
             const menuOpen = vRef(false), menuRoot = vRef(null), menuButton = vRef(null);
@@ -828,7 +851,7 @@
                 await transactScore('void', null, reason, note);
             };
 
-            return { view, tabs, allUsers, activeUsers, retiredCount, monthly, hallOfFame, lifetime, logs, diagnostics, allTimeHigh, form, formError, changePoints, submitScore, overlay, dismissOverlay, activeBadge, currentSeasonName, seasonCountdown, activityDateLabel, entryTime, getName, entrySummary, scoringSummary, historyRows, submitting, showSuccess, showAchievementDelta, isAdmin, isReadOnly, canAdmin, dataReady, dataError, status, saving,
+            return { view, tabs, allUsers, activeUsers, retiredCount, monthly, hallOfFame, lifetime, logs, diagnostics, allTimeHigh, form, formError, changePoints, submitScore, overlay, dismissOverlay, activeBadge, currentSeasonName, seasonCountdown, activityDateLabel, entryTime, getName, entrySummary, scoringSummary, historyRows, submitting, scoreWritePending, showSuccess, showAchievementDelta, isAdmin, isReadOnly, canAdmin, dataReady, dataError, status, saving,
                 menuOpen, menuRoot, menuButton, toggleMenu, openMenu, closeMenu, menuKeys, tabKeys, managePlayers, reviewEntries, showLogic,
                 officeDialog, dialogView, dialogTitle, dialogError, dialogClosed, closeDialog, search, filteredUsers, selectedPlayer, renameName, beginRename, confirmRename, beginStatusChange, confirmStatusChange, backToPlayers,
                 selectedEntry, editForm, hasEntryChanges, changeEditPoints, saveEntryChanges, beginVoid, backToEdit, voidReasons, voidReason, voidNote, reviewEntry, confirmVoid };
