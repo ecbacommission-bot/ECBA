@@ -137,7 +137,7 @@
                 <div class="p-2">
                     <div v-if="view === 'monthly'" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 pt-2 pb-3 text-[11px] font-bold">
                         <span class="text-warning uppercase tracking-wider">{{ currentSeasonName }}</span>
-                        <span class="opacity-60 tabular-nums" title="Season ends at midnight Eastern Time on the first of next month">Season ends in {{ seasonCountdown }} · ET</span>
+                        <span class="opacity-60 tabular-nums" title="Season ends at midnight Eastern Time on the first of next month">Season ends in {{ seasonCountdown }}</span>
                     </div>
                     <div v-show="view === 'monthly'" id="panel-monthly" role="tabpanel" aria-labelledby="tab-monthly" tabindex="0" class="overflow-x-auto">
                     <table class="table table-zebra table-sm font-medium">
