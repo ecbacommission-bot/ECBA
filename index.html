@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECBA Slam Jam 2.4.2</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        /* Keep touch scrolling (including horizontal tables), but not touch zoom. */
+        html, body, #app, .overflow-y-auto, .overflow-x-auto {
+            touch-action: pan-x pan-y;
+        }
+        button, .achievement-badge { user-select: none; }
+        [v-cloak] { display: none; }
+        .log-entry { font-family: 'JetBrains Mono', monospace; border-left-width: 4px; padding-left: 0.75rem; }
+        .achievement-badge { color: #FBBD23; }
+        .achievement-badge:active { transform: scale(0.9); opacity: 0.8; }
+        .title-ball { position: relative; display: inline-block; width: .98em; height: .74em; margin-right: .12em; overflow: hidden; vertical-align: -.04em; border-radius: 50%; transform: rotate(-17deg); background: radial-gradient(ellipse at 32% 24%, #fff5 0 8%, transparent 31%), radial-gradient(ellipse at 36% 25%, #ffe0a3 0, #ffb94f 24%, #ff922f 52%, #f6793b 78%, #df6958 100%); box-shadow: inset -3px -4px 7px #9e4b3150, inset 2px 2px 5px #fff6, 0 2px 4px #0005; }
+        .title-ball::after { content: ''; position: absolute; width: 53%; height: 22%; left: 19%; top: 13%; border-radius: 50%; transform: rotate(-24deg); background: linear-gradient(90deg, #fff8, #fff0); filter: blur(1px); }
+        .pr-badge { 
+            font-weight: 900;
+            font-style: italic;
+            color: #ff4d4d;
+            font-size: 10px;
+            animation: blink-red 2.0s step-end infinite; 
+        }
+        @keyframes blink-red { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes flash-score { 0%, 100% { opacity: 1; color: #FBBD23; } 50% { opacity: 0.5; color: white; } }
+        .animate-score-flash { animation: flash-score 1.5s ease-in-out infinite; }
+        @keyframes flash-penalty { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .animate-penalty-flash { color: #ff4d4d; animation: flash-penalty 1.5s ease-in-out infinite; }
+
+        /* Force Active Tab Color to Slam Jam Yellow and text to black */
+        .tabs-boxed .tab-active:not(.tab-disabled):not([aria-disabled="true"]) {
+            background-color: #FBBD23 !important;
+            color: #000000 !important;
+        }
+        input, select, textarea { font-size: 16px !important; }
+        /* Keep typed text large enough to avoid Safari's input-focus zoom. */
+        input[aria-label="Or add new name"]::placeholder { font-size: 13px; }
+        .achievement-badge { font-size: 10px; font-weight: 800; font-style: italic; text-transform: uppercase; background: transparent; border: 0; padding: 0; cursor: pointer; }
+        .score-display { display: inline-grid; grid-template-columns: 3.5rem 3rem 1.25rem; align-items: baseline; gap: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .score-display > span { text-align: right; }
+        .score-delta { font-size: 11px; font-weight: 600; letter-spacing: 0; color: #94a3b8; text-align: right; }
+        .score-delta-negative { color: #ff8585; }
+        #commissioner-menu [role="menuitem"],
+        #commissioner-menu [role="menuitem"]:hover,
+        #commissioner-menu [role="menuitem"]:focus { color: #e2e8f0; }
+        .points-heading { font-size: 18px; font-weight: 900; letter-spacing: -.9px; }
+        .points-heading > span:first-child { font-size: 10px; letter-spacing: 1px; }
+        .review-action { min-height: 44px; min-width: 68px; height: auto; }
+        .void-copy { text-decoration: line-through; color: #a3adba; }
+        .audit-reason { white-space: pre-wrap; overflow-wrap: anywhere; }
+        .season-capsule { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 4px 8px 12px; padding: 8px 13px; border: 1px solid rgba(255,180,84,.25); border-radius: 999px; background: linear-gradient(110deg,rgba(255,180,84,.10),rgba(255,114,188,.055)),rgba(8,14,26,.4); box-shadow: inset 0 1px rgba(255,255,255,.06); backdrop-filter: blur(12px); font-size: 10px; font-weight: 750; }
+        .season-capsule .season-name { color: #ffc46f; letter-spacing: .08em; text-transform: uppercase; }
+        .season-capsule .season-divider { width: 1px; height: 14px; background: rgba(255,220,177,.22); }
+        .season-capsule .season-time { color: #a3b3ca; font-variant-numeric: tabular-nums; }
+        .season-capsule .season-time strong { color: #eff7ff; font-weight: 800; }
+        .modal-box { max-height: calc(100dvh - 3rem); }
+        [data-testid="entry-card"] > form { flex: none; }
+        [data-testid="entry-card"] > .app-footer { margin-top: auto; padding-top: 12px; flex-shrink: 0; }
+        button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid #FBBD23; outline-offset: 3px; }
+        @media (orientation: landscape) and (min-width: 960px) {
+            body.bg-base-300 { padding-bottom: 0; }
+            #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 12px 16px; }
+            #app > header, .office-toolbar, #app > [role="alert"] { flex-shrink: 0; }
+            #app > header { padding: 12px 0 8px; margin-bottom: 16px; }
+            #app > header h1 { font-size: 60px; line-height: 1; }
+            .office-toolbar { margin-bottom: 8px; }
+            .kiosk-grid { flex: 0 0 auto; min-height: 0; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto; align-content: start; gap: 16px; max-height: calc(100dvh - 220px); }
+            .kiosk-grid.commissioner { max-height: calc(100dvh - 270px); }
+            .kiosk-grid > [data-testid="scoreboard-column"] { display: contents; }
+            .kiosk-grid > [data-testid="scoreboard-column"] > .tabs { grid-column: 1 / -1; grid-row: 1; }
+            [data-testid="entry-card"] { grid-column: 1 / span 4; grid-row: 2; min-height: max-content; max-height: none; overflow: visible; }
+            [data-testid="entry-card"] > form { flex: none; padding: 20px; gap: 12px; }
+            .kiosk-grid > [data-testid="scoreboard-column"] > .card { grid-column: 5 / -1; grid-row: 2; min-width: 0; min-height: 0; max-height: calc(100dvh - 220px); overflow-y: auto; }
+            .kiosk-grid.commissioner > [data-testid="scoreboard-column"] > .card { max-height: calc(100dvh - 270px); }
+            .kiosk-grid.readonly > [data-testid="scoreboard-column"] > .card { grid-column: 1 / -1; max-width: 56rem; width: 100%; justify-self: center; }
+            #panel-recent { max-height: none; overflow-y: visible; }
+            .app-footer { margin: 6px 0 12px; flex-direction: column; justify-content: center; gap: 0; flex-shrink: 0; }
+            .app-footer img { width: 88px; height: 88px; }
+            .app-footer p { margin-top: 2px; }
+        }
+        @media (prefers-reduced-motion: reduce) { .animate-score-flash, .animate-penalty-flash, .pr-badge, .animate-pulse { animation: none; } }
+    </style>
+</head>
+<body class="bg-base-300 min-h-screen pb-20 text-slate-200">
+
+<div id="app" v-cloak class="container mx-auto p-4 max-w-5xl">
+    <header class="text-center py-10 mb-4">
+        <h1 class="text-6xl font-black italic tracking-tighter text-warning uppercase drop-shadow-lg"><span class="title-ball" role="img" aria-label="Orange ping-pong ball"></span>ECBA Slam Jam</h1>
+        <p class="text-[10px] opacity-30 font-bold tracking-[0.4em] uppercase mt-2">Endpoint Configuration Basketball Authority</p>
+    </header>
+
+    <div v-if="canAdmin" class="office-toolbar flex justify-end relative mb-4" ref="menuRoot" @keydown.esc.stop.prevent="closeMenu(true)">
+        <button id="commissioner-button" ref="menuButton" type="button" @click="toggleMenu" @keydown.down.prevent="openMenu(0)" @keydown.up.prevent="openMenu(2)" class="btn btn-sm btn-ghost text-warning gap-2 review-action" aria-haspopup="menu" :aria-expanded="menuOpen" aria-controls="commissioner-menu">⚙️ Commissioner <span aria-hidden="true">▾</span></button>
+        <ul v-if="menuOpen" id="commissioner-menu" role="menu" aria-labelledby="commissioner-button" @keydown="menuKeys" class="menu bg-base-100 border border-white/10 rounded-box shadow-2xl absolute right-0 top-full mt-1 z-30 w-52 p-2">
+            <li role="none"><button type="button" role="menuitem" tabindex="-1" @click="managePlayers">Manage Players</button></li>
+            <li role="none"><button type="button" role="menuitem" tabindex="-1" @click="reviewEntries">Review Entries</button></li>
+            <li role="none"><button type="button" role="menuitem" tabindex="-1" @click="showLogic">Logic Report</button></li>
+        </ul>
+    </div>
+    <p v-if="dataError" class="text-error text-xs mb-2" role="alert">{{ dataError }}</p>
+    <div class="kiosk-grid grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch" :class="{readonly: isReadOnly, commissioner: canAdmin}">
+        <div v-if="!isReadOnly" data-testid="entry-card" class="lg:col-span-4 card bg-base-100 shadow-2xl border border-white/5">
+            <form @submit.prevent="submitScore" class="card-body p-6 gap-4 justify-start" aria-label="Submit score">
+                <fieldset :disabled="!dataReady" class="contents">
+                <h2 class="text-center text-warning uppercase text-[10px] tracking-widest mb-2 font-bold">Submit Entry</h2>
+                <div class="form-control">
+                    <select v-model="form.scorerId" aria-label="Choose player" class="select select-bordered select-warning w-full text-center font-bold">
+                        <option value="">-- Choose Player --</option>
+                        <option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
+                    </select>
+                    <input v-model="form.newPlayer" type="text" maxlength="32" aria-label="Or add new name" placeholder="OR Add New Name" class="input input-bordered min-h-[44px] mt-2 text-center uppercase placeholder:text-warning text-warning font-bold" />
+                </div>
+                <div class="divider my-0 text-warning uppercase text-[10px] tracking-widest font-bold">SCORE</div>
+                <div class="flex items-center justify-center gap-4 py-2">
+                    <button type="button" @click="changePoints(-1)" class="btn btn-circle btn-outline btn-warning text-xl" aria-label="Decrease points">−</button>
+                    <div class="text-center min-w-[5rem]"><div class="text-5xl font-black tracking-tighter" :class="form.points < 0 ? 'text-error' : 'text-warning'">{{ form.points }}</div></div>
+                    <button type="button" @click="changePoints(1)" class="btn btn-circle btn-outline btn-warning text-xl" aria-label="Increase points">+</button>
+                </div>
+                <div v-if="form.points < 0" class="form-control bg-error/10 p-3 rounded-xl border border-error/30 animate-pulse">
+                    <select v-model="form.targetId" aria-label="Choose victim" class="select select-error select-sm w-full font-bold text-center"><option value="">-- Choose Victim --</option><option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option></select>
+                </div>
+                <p v-if="formError" class="text-error text-xs" role="alert">{{ formError }}</p>
+                <button type="submit" :disabled="submitting || !dataReady" :class="showSuccess ? 'btn-success' : 'btn-warning'" class="btn btn-block font-black uppercase tracking-widest mt-2 transition-all">
+                    <span v-if="submitting" class="loading loading-spinner"></span><span v-else-if="showSuccess">✅ Recorded!</span><span v-else>Submit Score</span>
+                </button>
+                </fieldset>
+            </form>
+            <div class="app-footer mb-4 flex flex-col items-center">
+                <button type="button" onclick="window.location.reload()" aria-label="Refresh scoreboard" class="inline-flex items-center justify-center min-w-[44px] min-h-[44px]">
+                    <img src="https://raw.githubusercontent.com/ecbacommission-bot/ECBA/main/ECBA.png"
+                         class="w-32 h-32 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95"
+                         alt="ECBA Logo">
+                </button>
+                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.4.2</p>
+            </div>
+        </div>
+
+        <div data-testid="scoreboard-column" :class="isReadOnly ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-8'" class="flex flex-col gap-4 min-w-0">
+            <div class="tabs tabs-boxed bg-base-100 border border-white/5 p-1 flex-wrap h-auto" role="tablist" aria-label="Scoreboard views">
+                <button v-for="tab in tabs" :key="tab.id" :id="'tab-' + tab.id" type="button" role="tab" :aria-selected="view === tab.id" :aria-controls="'panel-' + tab.id" :tabindex="view === tab.id ? 0 : -1" @click="view = tab.id" @keydown="tabKeys($event, tab.id)" class="tab tab-sm flex-1 font-bold" :class="{'tab-active': view === tab.id, 'text-[10px]': isAdmin, 'text-xs': !isAdmin}">{{ tab.label }}</button>
+            </div>
+
+            <div class="card bg-base-100 shadow-xl border border-white/5">
+                <div class="p-2">
+                    <div v-if="view === 'monthly'" class="season-capsule" title="The season closes at midnight Eastern Time on the first of next month">
+                        <span class="season-name">◷ &nbsp;{{ currentSeasonName }}</span>
+                        <span class="season-divider" aria-hidden="true"></span>
+                        <span class="season-time">Closes in <strong>{{ seasonCountdown }}</strong> · ET</span>
+                    </div>
+                    <div v-show="view === 'monthly'" id="panel-monthly" role="tabpanel" aria-labelledby="tab-monthly" tabindex="0" class="overflow-x-auto">
+                    <table class="table table-zebra table-sm font-medium">
+                        <thead class="text-warning uppercase text-[10px] tracking-widest"><tr><th>Rank</th><th class="pl-8">Player</th><th class="text-right"><span class="score-display points-heading"><span>Points</span><span aria-hidden="true"></span><span aria-hidden="true"></span></span></th></tr></thead>
+                        <tbody>
+                            <tr v-for="(r, idx) in monthly" :key="r.id" class="hover">
+                                <td class="opacity-20 font-bold italic">{{ idx + 1 }}</td>
+                                <td>
+                                    <div class="flex items-center gap-3 pl-8 relative">
+                                        <div class="absolute left-0 w-8 text-center"><span v-if="r.isSkulled">💀</span><span v-else>{{ r.icon }}</span></div>
+                                        <span class="font-black text-sm uppercase">{{ r.name }}</span>
+                                        <button v-if="r.title" type="button" @click.stop="showAchievementDelta(r.title)" class="achievement-badge" :aria-label="r.title + ' achievement details'">{{ r.title }}</button>
+                                    </div>
+                                </td>
+                                <td class="text-right font-black text-lg tracking-tighter">
+                                    <span class="score-display">
+                                        <span :class="r.isSkulled ? 'animate-penalty-flash' : { 'text-warning': true, 'animate-score-flash': r.justUpdated }">{{ r.pts }}</span>
+                                        <span class="score-delta" :class="{'score-delta-negative': r.lastChange < 0}" :aria-label="'Last score change: ' + r.lastChange">{{ r.lastChange == null ? '' : '(' + (r.lastChange > 0 ? '+' : '−') + Math.abs(r.lastChange) + ')' }}</span>
+                                        <span><span v-if="r.isPR" class="pr-badge">PR</span></span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p v-if="!dataReady" class="p-6 flex items-center gap-3 text-sm opacity-60" role="status"><span class="loading loading-spinner loading-sm text-warning" aria-hidden="true"></span>Connecting to the scoreboard…</p>
+                    <p v-else-if="!monthly.length" class="p-6 text-sm opacity-60">No entries this season.</p>
+                    </div>
+
+                    <div v-show="view === 'hall'" id="panel-hall" role="tabpanel" aria-labelledby="tab-hall" tabindex="0" class="p-4 space-y-6">
+                        <div v-if="allTimeHigh.points > 0" class="bg-gradient-to-br from-warning/20 to-transparent p-6 rounded-2xl border border-warning/30 flex items-center justify-between shadow-inner">
+                            <div><h3 class="text-xs font-black uppercase text-warning tracking-[0.2em] mb-1">🌟 All-Time High Score</h3><p class="text-4xl font-black italic uppercase text-white tracking-tighter leading-none">{{ allTimeHigh.player }}</p></div>
+                            <div class="text-right"><span class="text-[10px] font-bold opacity-50 uppercase block">Single Season Record</span><span class="text-4xl font-black text-warning">{{ allTimeHigh.points }}</span></div>
+                        </div>
+                        <div class="divider text-warning font-bold text-[10px] tracking-widest">PAST CHAMPIONS</div>
+                        <div class="space-y-3">
+                            <div v-for="h in hallOfFame" :key="h.monthKey" class="flex items-center justify-between bg-base-200/50 p-4 rounded-xl border border-white/5 transition-all hover:bg-base-200">
+                                <div><div class="text-[10px] font-bold text-warning uppercase tracking-tighter">{{ h.label }}</div><div class="text-xl font-black italic uppercase text-white">{{ h.winner }}</div></div>
+                                <div class="text-right"><div class="text-[10px] font-bold opacity-40 uppercase">Final Score</div><div class="text-2xl font-black text-warning tracking-tighter">{{ h.pts }}</div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table v-show="view === 'lifetime'" id="panel-lifetime" role="tabpanel" aria-labelledby="tab-lifetime" tabindex="0" class="table table-zebra table-sm font-medium">
+                        <thead class="text-warning uppercase text-[10px] tracking-widest"><tr><th>Player</th><th class="text-right">All-Time Pts</th></tr></thead>
+                        <tbody><tr v-for="r in lifetime" :key="r.id" class="hover"><td class="font-black text-sm uppercase">{{ r.name }}</td><td class="text-right font-black text-warning text-lg tracking-tighter">{{ r.pts }}</td></tr></tbody>
+                    </table>
+
+                    <ul v-show="view === 'recent'" id="panel-recent" role="tabpanel" aria-labelledby="tab-recent" tabindex="0" class="p-4 space-y-2 max-h-[500px] overflow-y-auto">
+                        <li v-for="entry in logs" :key="entry.id" class="log-entry text-xs bg-base-200/50 py-2 rounded flex justify-between items-center gap-2" :style="{ borderLeftColor: entry.color || (entry.points < 0 ? '#ff4d4d' : '#333') }">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex flex-wrap justify-between gap-x-2 px-2 text-[10px] opacity-50 font-bold"><span>{{ activityDateLabel(entry.timestamp) }} · {{ entry.time }}</span><span v-if="entry.streak">STREAK: {{ entry.streak }}</span></div>
+                                <div class="px-2 break-words" :class="{'void-copy': entry.voided}"><b>{{ getName(entry.scorerId) }}</b><template v-if="entry.points < 0"> punished <b>{{ getName(entry.targetId) }}</b>! ({{ entry.points }}) (Total: {{ entry.total }})<span v-if="entry.broken" class="text-error font-bold"> [STREAK BROKEN!]</span></template><template v-else> scored {{ entry.points }}<template v-if="entry.streak"> and is {{ entry.tier }} (Streak {{ entry.streak }})</template>. (Total: {{ entry.total }})</template></div>
+                                <p v-if="entry.voided" class="px-2 mt-1 text-warning text-[11px] audit-reason">Voided · {{ entry.reason }}<span class="block opacity-60">Commissioner · {{ activityDateLabel(entry.voidedAt) }} · {{ entryTime(entry.voidedAt) }}</span></p>
+                                <details v-if="historyRows(entry).length || entry.voidAudit" class="px-2 mt-2 text-[11px]">
+                                    <summary class="cursor-pointer min-h-[44px] flex items-center text-warning">History · {{ historyRows(entry).length }} edit(s){{ entry.voided ? ' · voided' : '' }}</summary>
+                                    <ol class="space-y-3 pb-2">
+                                        <li v-for="(edit, index) in historyRows(entry)" :key="index" class="audit-reason"><strong>Edit {{ index + 1 }} · {{ edit.actor }}</strong> · {{ activityDateLabel(edit.editedAt) }} · {{ entryTime(edit.editedAt) }}<span class="block">Before: {{ scoringSummary(edit.before) }}</span><span class="block">After: {{ scoringSummary(edit.after) }}</span><span class="block opacity-60">Original time preserved: {{ activityDateLabel(edit.before.timestamp) }} · {{ entryTime(edit.before.timestamp) }}</span></li>
+                                        <li v-if="entry.voidAudit" class="audit-reason"><strong>Void · {{ entry.voidAudit.actor }}</strong> · {{ activityDateLabel(entry.voidAudit.voidedAt) }} · {{ entryTime(entry.voidAudit.voidedAt) }}<span class="block">{{ scoringSummary(entry.voidAudit.before) }} · {{ entry.voidAudit.reason }}<template v-if="entry.voidAudit.note"> · {{ entry.voidAudit.note }}</template></span><span class="block opacity-60">Original time preserved: {{ activityDateLabel(entry.voidAudit.before.timestamp) }} · {{ entryTime(entry.voidAudit.before.timestamp) }}</span></li>
+                                    </ol>
+                                </details>
+                            </div>
+                            <button v-if="canAdmin" type="button" @click="reviewEntry(entry)" :disabled="entry.voided || saving" class="btn btn-ghost btn-sm text-warning review-action shrink-0" :aria-label="'Review: ' + entrySummary(entry)" aria-haspopup="dialog">{{ entry.voided ? 'Voided' : 'Review' }}</button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <dialog ref="officeDialog" class="modal modal-bottom sm:modal-middle backdrop-blur-sm" aria-labelledby="office-title" @cancel="saving && $event.preventDefault()" @close="dialogClosed">
+        <div class="modal-box bg-base-100 border border-warning/30 shadow-2xl" :class="dialogView === 'players' ? 'max-w-xl' : ''">
+            <p class="text-[10px] text-warning uppercase font-bold tracking-widest">Commissioner's Office</p>
+            <h2 id="office-title" class="font-black text-warning uppercase tracking-tighter text-2xl italic mt-1">{{ dialogTitle }}</h2>
+            <fieldset :disabled="saving" :aria-busy="saving">
+                <template v-if="dialogView === 'players'">
+                    <p class="text-xs opacity-60 mt-2">{{ activeUsers.length }} active · {{ retiredCount }} retired · {{ allUsers.length }} total. Retired players keep their history, but leave scoring dropdowns.</p>
+                    <input v-model="search" type="search" aria-label="Search players" placeholder="Search players…" class="input input-bordered input-sm w-full my-4" data-initial-focus>
+                    <ul class="space-y-2 max-h-[48dvh] overflow-y-auto pr-1" aria-label="Player roster">
+                        <li v-for="u in filteredUsers" :key="u.id" :data-player-id="u.id" class="flex items-center justify-between gap-2 bg-base-200/50 px-3 py-2 rounded-lg border border-white/5">
+                            <div class="min-w-0"><span class="font-black text-sm uppercase break-words" :class="{'opacity-40': !u.isActive}">{{ u.name }}</span><span class="block text-[10px] font-bold" :class="u.isActive ? 'text-success' : 'opacity-50'">{{ u.isActive ? 'Active' : 'Retired' }}</span></div>
+                            <div class="flex gap-2 shrink-0"><button type="button" @click="beginRename(u)" class="btn btn-xs btn-outline btn-warning">Rename</button><button type="button" @click="beginStatusChange(u)" class="btn btn-xs btn-outline w-24" :class="u.isActive ? 'btn-error' : 'btn-success'">{{ u.isActive ? 'Retire' : 'Reactivate' }}</button></div>
+                        </li>
+                    </ul>
+                    <p v-if="!filteredUsers.length" class="text-sm opacity-60 py-4">No matching players.</p>
+                    <div class="modal-action"><button type="button" @click="closeDialog" class="btn btn-sm">Close</button></div>
+                </template>
+                <form v-else-if="dialogView === 'rename'" @submit.prevent="confirmRename">
+                    <p class="text-sm opacity-70 mt-3">Rename {{ selectedPlayer?.name }} everywhere, including past seasons. The player ID stays the same.</p>
+                    <label for="rename-name" class="label text-sm font-bold mt-2">Player name</label>
+                    <input id="rename-name" v-model="renameName" type="text" required maxlength="32" class="input input-bordered input-warning w-full" data-initial-focus>
+                    <p class="text-[11px] opacity-50 mt-2">1–32 characters · unique, ignoring case and surrounding spaces.</p>
+                    <div class="modal-action"><button type="button" @click="backToPlayers" class="btn btn-sm">Cancel</button><button type="submit" class="btn btn-warning btn-sm">Rename player</button></div>
+                </form>
+                <template v-else-if="dialogView === 'retire'">
+                    <p class="text-sm mt-4">{{ selectedPlayer?.isActive ? 'Retire' : 'Reactivate' }} <strong>{{ selectedPlayer?.name }}</strong>?</p>
+                    <p class="text-sm opacity-70 mt-2">All points, past seasons and activity remain intact. Retired players leave scoring dropdowns and can be reactivated later.</p>
+                    <div class="modal-action"><button type="button" @click="backToPlayers" class="btn btn-sm" data-initial-focus>Cancel</button><button type="button" @click="confirmStatusChange" class="btn btn-sm" :class="selectedPlayer?.isActive ? 'btn-error' : 'btn-success'">{{ selectedPlayer?.isActive ? 'Retire player' : 'Reactivate player' }}</button></div>
+                </template>
+                <form v-else-if="dialogView === 'review' && selectedEntry" @submit.prevent="saveEntryChanges">
+                    <p class="text-[11px] opacity-50 mt-2">{{ activityDateLabel(selectedEntry.timestamp) }} · {{ entryTime(selectedEntry.timestamp) }}</p>
+                    <p class="bg-base-200 border-l-4 border-warning p-3 mt-2 text-sm break-words">{{ entrySummary(selectedEntry) }}</p>
+                    <p class="text-xs opacity-70 mt-3">Original time preserved. Saving recalculates totals, streaks, skulls and achievements. Retired players are included for historical corrections.</p>
+                    <label for="edit-player" class="label text-sm font-bold">Player</label>
+                    <select id="edit-player" v-model="editForm.scorerId" class="select select-bordered w-full" data-initial-focus><option v-for="u in allUsers" :key="u.id" :value="u.id">{{ u.name }}{{ u.isActive ? '' : ' (retired)' }}</option></select>
+                    <label for="edit-points" class="label text-sm font-bold">Points · positive = score, negative = penalty</label>
+                    <div class="flex gap-2"><button type="button" @click="changeEditPoints(-1)" class="btn btn-outline review-action" aria-label="Decrease edited points">−</button><input id="edit-points" v-model.number="editForm.points" type="number" step="1" required class="input input-bordered w-full min-w-0 text-center"><button type="button" @click="changeEditPoints(1)" class="btn btn-outline review-action" aria-label="Increase edited points">+</button></div>
+                    <template v-if="editForm.points < 0"><label for="edit-target" class="label text-sm font-bold">Penalty target</label><select id="edit-target" v-model="editForm.targetId" class="select select-bordered select-error w-full"><option value="">-- Choose Victim --</option><option v-for="u in allUsers" :key="u.id" :value="u.id">{{ u.name }}{{ u.isActive ? '' : ' (retired)' }}</option></select></template>
+                    <div class="modal-action flex-wrap gap-2"><button type="button" @click="closeDialog" class="btn review-action">Keep Entry</button><button type="submit" :disabled="saving || !hasEntryChanges || !canAdmin || selectedEntry.voided" class="btn btn-warning review-action">Save Changes</button></div>
+                    <button type="button" @click="beginVoid" class="btn btn-ghost text-error review-action mt-3">Void Entry…</button>
+                </form>
+                <form v-else-if="dialogView === 'void' && selectedEntry" @submit.prevent="confirmVoid">
+                    <p class="bg-base-200 border-l-4 border-error p-3 mt-3 text-sm break-words">{{ entrySummary(selectedEntry) }}</p>
+                    <p class="text-xs opacity-70 mt-3">Void this saved entry? Unsaved edits are not applied. Its latest text, original time and all edits remain in Activity; standings are recalculated without it.</p>
+                    <label for="void-reason" class="label text-sm font-bold">Reason</label><select id="void-reason" v-model="voidReason" class="select select-bordered w-full" data-initial-focus><option v-for="reason in voidReasons" :key="reason">{{ reason }}</option></select>
+                    <template v-if="voidReason === 'Other'"><label for="void-note" class="label text-sm font-bold">Note (optional)</label><textarea id="void-note" v-model="voidNote" maxlength="240" rows="2" class="textarea textarea-bordered w-full"></textarea></template>
+                    <div class="modal-action flex-wrap gap-2"><button type="button" @click="closeDialog" class="btn review-action">Keep Entry</button><button type="button" @click="backToEdit" class="btn review-action">Back to Edit</button><button type="submit" class="btn btn-error review-action">Void Entry</button></div>
+                </form>
+                <template v-else-if="dialogView === 'logic'">
+                    <p class="text-xs opacity-60 mt-2">Current season · recomputed from non-voided entries.</p>
+                    <div class="overflow-x-auto mt-4"><table class="table table-xs w-full font-mono text-[10px] uppercase"><thead class="text-info"><tr><th>Player</th><th>Punished (10)</th><th>Victim (10)</th><th>Streak (15)</th><th>Max Day (25)</th></tr></thead><tbody><tr v-for="d in diagnostics" :key="d.id" class="border-b border-white/5"><td class="font-bold text-white">{{ d.name }}</td><td :class="d.pActs >= 10 ? 'text-success' : 'opacity-40'">{{ d.pActs }}</td><td :class="d.vPts >= 10 ? 'text-success' : 'opacity-40'">{{ d.vPts }}</td><td :class="d.streak >= 15 ? 'text-success' : 'opacity-40'">{{ d.streak }}</td><td :class="d.dMax >= 25 ? 'text-success' : 'opacity-40'">{{ d.dMax }}</td></tr></tbody></table></div>
+                    <div class="modal-action"><button type="button" @click="closeDialog" class="btn btn-sm" data-initial-focus>Close</button></div>
+                </template>
+                <template v-else-if="dialogView === 'achievement'"><p class="py-4 font-bold text-slate-300">{{ activeBadge.desc }}</p><div class="modal-action"><button type="button" @click="closeDialog" class="btn btn-warning btn-sm" data-initial-focus>Close</button></div></template>
+            </fieldset>
+            <p v-if="saving" class="text-warning text-xs mt-2" role="status">Saving…</p>
+            <p v-if="dialogError" class="text-error text-xs mt-2" role="alert">{{ dialogError }}</p>
+        </div>
+    </dialog>
+
+    <div v-if="overlay.show" @click="dismissOverlay" class="fixed inset-0 bg-black/90 z-[500] flex items-center justify-center p-4 backdrop-blur-xl">
+        <img :src="overlay.gif" alt="Slam Jam celebration — tap to dismiss" class="max-w-full max-h-full rounded-2xl border-2 border-warning shadow-2xl" />
+    </div>
+
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, set, onValue, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    const { createApp, ref: vRef, onMounted, onUnmounted, computed, nextTick } = Vue;
+
+    createApp({
+        setup() {
+            const submitting = vRef(false), scoreWritePending = vRef(false), showSuccess = vRef(false), view = vRef('monthly');
+            const monthly = vRef([]), lifetime = vRef([]), hallOfFame = vRef([]), logs = vRef([]), diagnostics = vRef({});
+            const allTimeHigh = vRef({ player: 'N/A', points: 0 }), overlay = vRef({ show: false, gif: '' });
+            const activeBadge = vRef({ title: '', desc: '' });
+            const form = vRef({ scorerId: '', newPlayer: '', targetId: '', points: 1 });
+            const isAdmin = vRef(new URLSearchParams(window.location.search).get('admin') === 'true');
+            const isReadOnly = vRef(new URLSearchParams(window.location.search).get('viewonly') === 'true');
+            const canAdmin = computed(() => isAdmin.value && !isReadOnly.value && dataReady.value);
+            const formError = vRef(''), dialogError = vRef(''), dataError = vRef(''), status = vRef(''), saving = vRef(false);
+            const dataReady = vRef(false);
+            let usersReady = false, scoresReady = false, disposed = false;
+            const tabs = [{ id: 'monthly', label: '📅 CURRENT SEASON' }, { id: 'hall', label: '🏆 HALL OF FAME' }, { id: 'lifetime', label: '🌟 LIFETIME' }, { id: 'recent', label: '📰 ACTIVITY' }];
+
+            const CONFIG = { JUGGERNAUT: 15, SLAYER: 3, GODLIKE: 6, CENTURION: 100, PRAETORIAN: 150, OVERACHIEVER: 25 };
+            const TIERS = {
+                2: { icon: '🔥', title: 'ON FIRE!', color: '#fb923c', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/2f0f1ee8e790e3bc63dce62cdd599b83292bb534/Generation_Fiery_Hoop_Effect.gif" },
+                3: { icon: '💥', title: 'LEGENDARY!', color: '#facc15', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Exploding_Hoop_Effect.gif" },
+                4: { icon: '👑', title: 'EPIC!', color: '#4ade80', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_King_Hoop_Effect.gif" },
+                5: { icon: '⚡', title: 'UNSTOPPABLE!', color: '#60a5fa', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Lightning_Hoop_Effect.gif" },
+                6: { icon: '🌀', title: 'GODLIKE!', color: '#a855f7', gif: "https://raw.githubusercontent.com/ecbacommission-bot/ECBA/8d77a1426dfe53237a6d473b0134436747d0c4f8/Generation_Godlike_Hoop_Effect.gif" }
+            };
+            const TOOLTIPS = { "Praetorian": "Reached 150+ points.", "Centurion": "Reached 100+ points.", "Grim Reaper": "Personally skulled every other active player (Min 4 active players). Each skull must still be yours: scoring clears it, and another punisher takes it over.", "Punisher": "Top villain (Min 10 acts).", "The Punished": "Top victim (Min 10 pts).", "Juggernaut": "Streak of 15+.", "Godslayer": "Broke 3 Godlike streaks.", "Overachiever": "25+ points in a single day." };
+
+            const fbApp = initializeApp({ apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g", authDomain: "ecba-slamjam.firebaseapp.com", databaseURL: "https://ecba-slamjam-default-rtdb.firebaseio.com", projectId: "ecba-slamjam" });
+            const fbDb = getDatabase(fbApp), usersRef = ref(fbDb, 'users'), scoresRef = ref(fbDb, 'scores_v2');
+            const usersMap = vRef({}), optimisticUsers = vRef({}), optimisticScores = vRef({}), presentations = vRef({}); let rawScores = {};
+            const copy = value => JSON.parse(JSON.stringify(value));
+            const getName = id => usersMap.value[id]?.name || 'Unknown';
+            const lexical = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+            const historyRows = entry => Object.entries(entry.editHistory || {}).sort(([a], [b]) => {
+                const oldA = /^\d+$/.test(a), oldB = /^\d+$/.test(b);
+                return oldA && oldB ? Number(a) - Number(b) : oldA !== oldB ? oldA ? -1 : 1 : lexical(a, b);
+            }).map(([, audit]) => audit);
+            const entryTime = timestamp => typeof timestamp === 'number' && Number.isFinite(timestamp) ? new Date(timestamp).toLocaleTimeString('en-US', { timeZone: LEAGUE_TIME_ZONE, hour: '2-digit', minute: '2-digit' }) : 'Pending';
+            const entrySummary = entry => entry.points < 0
+                ? `${getName(entry.scorerId)} punished ${getName(entry.targetId)}! (${entry.points}) (Total: ${entry.total})${entry.broken ? ' [STREAK BROKEN!]' : ''}`
+                : `${getName(entry.scorerId)} scored ${entry.points}${entry.streak ? ` and is ${entry.tier} (Streak ${entry.streak})` : ''}. (Total: ${entry.total})`;
+            const scoringSummary = entry => entry.points < 0 ? `${getName(entry.scorerId)} punished ${getName(entry.targetId)} (${entry.points})` : `${getName(entry.scorerId)} scored +${entry.points}`;
+
+            const allUsers = computed(() => Object.entries({ ...usersMap.value, ...optimisticUsers.value }).map(([id, u]) => ({ id, name: u.name, isActive: u.isActive !== false })).sort((a,b) => a.name.localeCompare(b.name)));
+            const activeUsers = computed(() => allUsers.value.filter(u => u.isActive));
+            const retiredCount = computed(() => allUsers.value.length - activeUsers.value.length);
+            // One office calendar, regardless of the viewing device's timezone.
+            const LEAGUE_TIME_ZONE = 'America/New_York';
+            const calendar = new Intl.DateTimeFormat('en-US', { timeZone: LEAGUE_TIME_ZONE, year: 'numeric', month: 'numeric', day: 'numeric' });
+            const getCalendarDate = (date) => {
+                const parts = Object.fromEntries(calendar.formatToParts(date).map(p => [p.type, p.value]));
+                return { season: `${parts.year}-${Number(parts.month) - 1}`, day: `${parts.year}-${parts.month}-${parts.day}` };
+            };
+            const seasonDate = vRef(new Date());
+            const currentSeasonName = computed(() => seasonDate.value.toLocaleString('default', { timeZone: LEAGUE_TIME_ZONE, month: 'long', year: 'numeric' }));
+            const currentSeasonKey = computed(() => getCalendarDate(seasonDate.value).season);
+            const seasonEndsAt = computed(() => {
+                const [year, month] = currentSeasonKey.value.split('-').map(Number);
+                const wallMidnight = Date.UTC(year, month + 1, 1);
+                const clock = new Intl.DateTimeFormat('en-US', { timeZone: LEAGUE_TIME_ZONE, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' });
+                let instant = wallMidnight;
+                // Convert league-local midnight to an instant, including DST offset changes.
+                for (let i = 0; i < 3; i++) {
+                    const p = Object.fromEntries(clock.formatToParts(new Date(instant)).map(part => [part.type, part.value]));
+                    const local = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
+                    instant += wallMidnight - local;
+                }
+                return instant;
+            });
+            const seasonCountdown = computed(() => {
+                const minutes = Math.max(0, Math.ceil((seasonEndsAt.value - seasonDate.value.getTime()) / 60000));
+                // Minute precision keeps the small status line calm, not a ticking clock.
+                return `${Math.floor(minutes / 1440)}d ${Math.floor(minutes / 60) % 24}h ${minutes % 60}m`;
+            });
+            const activityDateLabel = (timestamp) => {
+                if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) return 'Pending';
+                const date = new Date(timestamp), entryDay = getCalendarDate(date).day;
+                const today = getCalendarDate(seasonDate.value).day;
+                const dayNumber = (day) => { const [y, m, d] = day.split('-').map(Number); return Date.UTC(y, m - 1, d) / 86400000; };
+                const age = dayNumber(today) - dayNumber(entryDay);
+                if (age === 0) return 'Today';
+                if (age === 1) return 'Yesterday';
+                return date.toLocaleDateString('en-US', { timeZone: LEAGUE_TIME_ZONE, month: 'short', day: 'numeric', year: 'numeric' });
+            };
+            let processedSeason = getCalendarDate(seasonDate.value).season;
+
+            // Rebuild only on snapshots or a season boundary, not each clock tick.
+            // Replay is side-effect free: edits/renames/voids never trigger celebrations.
+            const validScore = d => d && typeof d.timestamp === 'number' && Number.isFinite(d.timestamp) && !Number.isNaN(new Date(d.timestamp).getTime()) && typeof d.scorerId === 'string' && Number.isSafeInteger(d.points);
+            const processData = () => {
+                const mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, histOrder = {}, logArr = [], lastAction = {}, lastPunisher = {}, lastChange = {}, shown = {};
+                let globalCurP = null, globalCurS = 0, lastS = null, replayMonth = null;
+                seasonDate.value = new Date();
+                const targetSeason = getCalendarDate(seasonDate.value).season;
+                processedSeason = targetSeason;
+                const sorted = Object.entries({ ...rawScores, ...optimisticScores.value }).filter(([, d]) => validScore(d)).sort((a, b) => a[1].timestamp - b[1].timestamp || lexical(a[0], b[0]));
+                sorted.forEach(([id, d], order) => {
+                    const date = getCalendarDate(new Date(d.timestamp)), mk = date.season, isM = mk === targetSeason;
+                    // Each historical season also gets its original streak presentation.
+                    if (replayMonth !== mk) { replayMonth = mk; globalCurP = null; globalCurS = 0; }
+                    const sId = d.scorerId, tId = d.targetId || sId, pts = d.points, affected = pts > 0 ? sId : tId;
+                    const log = { ...d, id, order, targetId: tId, time: entryTime(d.timestamp), total: 0, streak: null, tier: '', color: null, broken: false };
+                    if (d.voided) {
+                        Object.assign(log, d.audit || {});
+                        shown[id] = log;
+                        if (isM) logArr.unshift(log);
+                        return;
+                    }
+                    if (pts === 0) return; // Legacy zero rows never change ties, skulls or streaks.
+                    hist[mk] ||= {}; histOrder[mk] ||= {};
+                    hist[mk][affected] = (hist[mk][affected] || 0) + pts;
+                    histOrder[mk][affected] = order;
+                    log.total = hist[mk][affected];
+                    if (pts > 0) lTot[sId] = (lTot[sId] || 0) + pts;
+                    if (pts < 0) {
+                        log.broken = globalCurP === tId && globalCurS >= 2;
+                        if (log.broken) { globalCurP = null; globalCurS = 0; }
+                        if (isM) {
+                            mTot[sId] ||= 0;
+                            lastAction[tId] = 'punished'; lastPunisher[tId] = sId;
+                            pCnt[sId] = (pCnt[sId] || 0) + 1; vCnt[tId] = (vCnt[tId] || 0) + Math.abs(pts);
+                        }
+                    } else {
+                        if (globalCurP === sId) globalCurS++;
+                        else { if (isM && globalCurP && globalCurS >= 6) slay[sId] = (slay[sId] || 0) + 1; globalCurP = sId; globalCurS = 1; }
+                        const tier = TIERS[Math.min(globalCurS, 6)];
+                        if (tier) { log.streak = globalCurS; log.tier = tier.title; log.color = tier.color; }
+                        if (isM) {
+                            lastS = sId; lastAction[sId] = 'scored'; delete lastPunisher[sId];
+                            mStr[sId] = Math.max(mStr[sId] || 0, globalCurS);
+                            dTot[sId] ||= {}; dTot[sId][date.day] = (dTot[sId][date.day] || 0) + pts;
+                        }
+                    }
+                    shown[id] = log;
+                    if (isM) {
+                        mTot[affected] = (mTot[affected] || 0) + pts; lastChange[affected] = pts;
+                        logArr.unshift(log);
+                    }
+                });
+
+                const hb = {}; let high = { player: 'N/A', points: 0 };
+                Object.keys(hist).forEach(mk => Object.entries(hist[mk]).forEach(([p,pts]) => {
+                    if (pts > high.points) high = { player: getName(p), points: pts };
+                    if (mk !== targetSeason) hb[p] = Math.max(hb[p]||0, pts);
+                }));
+
+                allTimeHigh.value = high;
+                hallOfFame.value = Object.keys(hist).filter(mk => mk !== targetSeason).map(mk => {
+                    const p = mk.split('-');
+                    const top = Object.entries(hist[mk]).sort((a,b) => b[1] - a[1] || (histOrder[mk][b[0]] ?? -1) - (histOrder[mk][a[0]] ?? -1))[0];
+                    return top ? { monthKey: mk, label: new Date(p[0], p[1]).toLocaleString('default', { month: 'long', year: 'numeric' }), winner: getName(top[0]), pts: top[1], sortKey: parseInt(p[0])*12 + parseInt(p[1]) } : null;
+                }).filter(x => x).sort((a,b) => b.sortKey - a.sortKey);
+
+                const topP = Object.entries(pCnt).sort((a,b)=>b[1]-a[1])[0]?.[0], topV = Object.entries(vCnt).sort((a,b)=>b[1]-a[1])[0]?.[0];
+                monthly.value = Object.entries(mTot).map(([uid, pts]) => {
+                    let title = ""; const others = activeUsers.value.filter(p => p.id !== uid);
+                    const reaper = activeUsers.value.some(p => p.id === uid) && activeUsers.value.length >= 4 && others.every(p => lastPunisher[p.id] === uid);
+                    const dMax = Math.max(0, ...Object.values(dTot[uid] || {}));
+                    if (pts >= CONFIG.PRAETORIAN) title = "Praetorian"; 
+                    else if (pts >= CONFIG.CENTURION) title = "Centurion"; 
+                    else if (reaper) title = "Grim Reaper";
+                    else if (slay[uid] >= 3) title = "Godslayer"; 
+                    else if (mStr[uid] >= 15) title = "Juggernaut";
+                    else if (uid === topP && pCnt[uid] >= 10) title = "Punisher"; 
+                    else if (uid === topV && vCnt[uid] >= 10) title = "The Punished";
+                    else if (dMax >= 25) title = "Overachiever";
+                    return { id: uid, name: getName(uid), pts, lastChange: lastChange[uid] ?? null, title, isPR: pts > (hb[uid] || 0) && (hb[uid] || 0) > 0, isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastS, icon: replayMonth === targetSeason && globalCurP === uid ? TIERS[Math.min(globalCurS, 6)]?.icon : '' };
+                }).sort((a,b)=>b.pts-a.pts || (histOrder[targetSeason]?.[b.id] ?? -1) - (histOrder[targetSeason]?.[a.id] ?? -1));
+
+                lifetime.value = Object.entries(lTot).map(([uid, pts]) => ({ id: uid, name: getName(uid), pts })).sort((a,b)=>b.pts-a.pts || lexical(a.id, b.id));
+                const diags = {};
+                Object.entries(mTot).forEach(([uid]) => diags[uid] = { id: uid, name: getName(uid), pActs: pCnt[uid] || 0, vPts: vCnt[uid] || 0, streak: mStr[uid] || 0, dMax: Math.max(0, ...Object.values(dTot[uid] || {})) });
+                diagnostics.value = diags; logs.value = logArr.slice(0, 20); presentations.value = shown;
+            };
+
+            const checkSeason = () => {
+                seasonDate.value = new Date();
+                if (getCalendarDate(seasonDate.value).season !== processedSeason) {
+                    dismissOverlay(); processData();
+                }
+            };
+            let seasonTimer, successTimer, overlayTimer, unsubscribeUsers, unsubscribeScores, overlayGeneration = 0;
+            const dismissOverlay = () => { ++overlayGeneration; clearTimeout(overlayTimer); overlay.value.show = false; };
+            const playAnim = url => {
+                const generation = ++overlayGeneration;
+                clearTimeout(overlayTimer); overlay.value = { show: true, gif: url };
+                overlayTimer = setTimeout(() => { if (!disposed && generation === overlayGeneration) overlay.value.show = false; }, 5000);
+            };
+            // First snapshot is history, not a new event. Remember every observed key,
+            // including pending server timestamps, so a later edit cannot replay it.
+            const observedScores = new Set(), pendingScores = new Set(), localWrites = new Set(), deferredCelebrations = new Set();
+            let initialScores = true;
+            const celebrateEntry = id => {
+                const d = rawScores[id], shown = presentations.value[id];
+                if (!validScore(d) || d.voided || d.revision || Object.keys(d.editHistory || {}).length || d.points === 0 || !shown) return;
+                const age = Date.now() - d.timestamp;
+                if (age < 0 || age >= 10000 || getCalendarDate(new Date(d.timestamp)).season !== processedSeason) return;
+                if (disposed) return;
+                if (submitting.value || showSuccess.value) { deferredCelebrations.add(id); return; }
+                if (d.points < 0) playAnim('https://raw.githubusercontent.com/ecbacommission-bot/ECBA/09928cdd2e2a676ac0ecd2054e01a941db8e1518/Generation_Punisher_Hoop_Effect.gif');
+                else if (shown.streak >= 2) playAnim(TIERS[Math.min(shown.streak, 6)].gif);
+            };
+            const flushCelebrations = () => {
+                if (disposed || submitting.value || showSuccess.value) return;
+                const ids = [...deferredCelebrations];
+                deferredCelebrations.clear();
+                // Revalidate against the latest snapshot in case an entry was corrected.
+                ids.forEach(celebrateEntry);
+            };
+            const receiveScores = snapshot => {
+                if (disposed) return;
+                rawScores = snapshot.val() || {}; processData();
+                const confirmedOptimistic = Object.keys(optimisticScores.value).filter(id => validScore(rawScores[id]));
+                if (confirmedOptimistic.length) {
+                    const remaining = { ...optimisticScores.value };
+                    confirmedOptimistic.forEach(id => delete remaining[id]);
+                    optimisticScores.value = remaining;
+                    processData();
+                }
+                const candidates = [];
+                for (const [id, d] of Object.entries(rawScores)) {
+                    const unseen = !observedScores.has(id);
+                    observedScores.add(id);
+                    if (initialScores || localWrites.has(id)) continue;
+                    if (unseen && !validScore(d)) pendingScores.add(id);
+                    if ((unseen || pendingScores.has(id)) && validScore(d)) { pendingScores.delete(id); candidates.push(id); }
+                }
+                initialScores = false;
+                candidates.sort((a, b) => rawScores[a].timestamp - rawScores[b].timestamp || lexical(a, b)).forEach(celebrateEntry);
+                scoresReady = true; dataReady.value = usersReady && scoresReady && !dataError.value;
+            };
+            const subscriptionError = error => { if (!disposed) { dataReady.value = false; dataError.value = `Unable to load league data: ${error.message || 'permission or connection error'}. Reload to retry.`; } };
+            // Safari can still handle native pinch/double-tap gestures despite
+            // touch-action. Cancel zoom gestures, not ordinary one-finger scrolling.
+            const gestureOptions = { passive: false, capture: true };
+            const blockGestureZoom = event => { if (event.cancelable) event.preventDefault(); };
+            const blockMultiTouch = event => {
+                if (event.touches?.length > 1) blockGestureZoom(event);
+            };
+            let lastTap = null;
+            const blockDoubleTap = event => {
+                if (event.touches?.length || event.changedTouches?.length !== 1) { lastTap = null; return; }
+                const touch = event.changedTouches[0], now = Date.now();
+                const doubleTap = lastTap && now - lastTap.time < 350 && Math.hypot(touch.clientX - lastTap.x, touch.clientY - lastTap.y) < 30;
+                lastTap = { time: now, x: touch.clientX, y: touch.clientY };
+                if (!doubleTap) return;
+                blockGestureZoom(event);
+                // Canceling touchend suppresses its synthetic click. Keep rapid
+                // score-button taps working, but do not synthesize input/select clicks.
+                event.target?.closest?.('button')?.click();
+            };
+            onMounted(() => {
+                unsubscribeUsers = onValue(usersRef, s => {
+                    if (disposed) return;
+                    usersMap.value = s.val() || {};
+                    const confirmed = Object.keys(optimisticUsers.value).filter(id => usersMap.value[id]);
+                    if (confirmed.length) {
+                        const remaining = { ...optimisticUsers.value };
+                        confirmed.forEach(id => delete remaining[id]);
+                        optimisticUsers.value = remaining;
+                    }
+                    usersReady = true; dataReady.value = usersReady && scoresReady && !dataError.value; processData();
+                }, subscriptionError);
+                unsubscribeScores = onValue(scoresRef, receiveScores, subscriptionError);
+                // Recheck while open, and immediately after a sleeping/backgrounded kiosk returns.
+                seasonTimer = setInterval(checkSeason, 1000);
+                document.addEventListener('pointerdown', outsideClick);
+                document.addEventListener('visibilitychange', checkSeason);
+                document.addEventListener('gesturestart', blockGestureZoom, gestureOptions);
+                document.addEventListener('gesturechange', blockGestureZoom, gestureOptions);
+                document.addEventListener('touchstart', blockMultiTouch, gestureOptions);
+                document.addEventListener('touchmove', blockMultiTouch, gestureOptions);
+                document.addEventListener('touchend', blockDoubleTap, gestureOptions);
+                document.addEventListener('dblclick', blockGestureZoom, gestureOptions);
+                window.addEventListener('focus', checkSeason);
+                window.addEventListener('pageshow', checkSeason);
+            });
+            onUnmounted(() => {
+                disposed = true;
+                deferredCelebrations.clear();
+                showSuccess.value = false;
+                clearInterval(seasonTimer); clearTimeout(successTimer); clearTimeout(overlayTimer);
+                unsubscribeUsers?.();
+                unsubscribeScores?.();
+                document.removeEventListener('pointerdown', outsideClick);
+                document.removeEventListener('visibilitychange', checkSeason);
+                document.removeEventListener('gesturestart', blockGestureZoom, gestureOptions);
+                document.removeEventListener('gesturechange', blockGestureZoom, gestureOptions);
+                document.removeEventListener('touchstart', blockMultiTouch, gestureOptions);
+                document.removeEventListener('touchmove', blockMultiTouch, gestureOptions);
+                document.removeEventListener('touchend', blockDoubleTap, gestureOptions);
+                document.removeEventListener('dblclick', blockGestureZoom, gestureOptions);
+                window.removeEventListener('focus', checkSeason);
+                window.removeEventListener('pageshow', checkSeason);
+            });
+
+            const normalizedName = value => String(value || '').trim().toLowerCase();
+            const validateName = (value, exceptId = null) => {
+                const name = value.trim();
+                if (!name) return 'Enter a name, not just spaces.';
+                if (name.length > 32) return 'Use 32 characters or fewer.';
+                if (allUsers.value.some(u => u.id !== exceptId && normalizedName(u.name) === normalizedName(name))) return 'That name already exists (including retired players). Choose a unique name.';
+                return '';
+            };
+            const stepPoints = (value, delta) => {
+                if (![-1, 1].includes(delta) || !Number.isSafeInteger(value)) return value;
+                const next = value + delta;
+                return Number.isSafeInteger(next) ? next === 0 ? delta : next : value;
+            };
+            const changePoints = delta => { if (!isReadOnly.value && dataReady.value) form.value.points = stepPoints(form.value.points, delta); };
+            // A score can be posted while its new player's record is still saving.
+            // Reuse that pending write when another entry selects the same player.
+            const pendingUserWrites = new Map();
+            let submissionGeneration = 0;
+            const submitScore = async () => {
+                if (isReadOnly.value || submitting.value || scoreWritePending.value || !dataReady.value) return;
+                const draft = { ...form.value }, name = draft.newPlayer.trim(), pts = draft.points;
+                let sid = draft.scorerId;
+                formError.value = '';
+                if (!Number.isSafeInteger(pts) || pts === 0) { formError.value = 'Use a nonzero safe whole number of points.'; return; }
+                if (draft.newPlayer && (!name || name.length > 32)) { formError.value = name ? 'Use 32 characters or fewer.' : 'Enter a name, not just spaces.'; return; }
+                if (pts < 0 && !activeUsers.value.some(u => u.id === draft.targetId)) { formError.value = 'Choose an active victim for a penalty.'; return; }
+                const existing = name ? allUsers.value.find(u => normalizedName(u.name) === normalizedName(name)) : null;
+                if (existing && !existing.isActive) { formError.value = 'That player is retired. Ask the Commissioner to reactivate them; no duplicate was created.'; return; }
+                if (existing) sid = existing.id;
+                if (!name && !activeUsers.value.some(u => u.id === sid)) return;
+                submitting.value = true;
+                let scoreRef = null, optimisticUserId = null, userWrite = null, userWriteSucceeded = false;
+                const generation = ++submissionGeneration;
+                try {
+                    if (name && !existing) {
+                        sid = push(usersRef).key;
+                        optimisticUserId = sid;
+                        optimisticUsers.value = { ...optimisticUsers.value, [sid]: { name, isActive: true } };
+                        userWrite = Promise.resolve().then(() => set(ref(fbDb, `users/${sid}`), { name, isActive: true }));
+                        pendingUserWrites.set(sid, userWrite);
+                    } else if (sid) {
+                        userWrite = pendingUserWrites.get(sid) || null;
+                    }
+                    scoreRef = push(scoresRef);
+                    optimisticScores.value = { ...optimisticScores.value, [scoreRef.key]: {
+                        scorerId: sid, targetId: pts < 0 ? draft.targetId : sid, points: pts, timestamp: Date.now()
+                    } };
+                    processData();
+                    // Optimistically clear the submitted draft so the next entry can
+                    // be prepared during Firebase's asynchronous confirmation.
+                    if (Object.keys(draft).every(key => form.value[key] === draft[key])) {
+                        form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
+                    }
+                    // Acknowledge the tap immediately; persistence continues below.
+                    showSuccess.value = true;
+                    scoreWritePending.value = true;
+                    clearTimeout(successTimer);
+                    successTimer = setTimeout(() => {
+                        if (disposed || generation !== submissionGeneration) return;
+                        showSuccess.value = false;
+                        flushCelebrations();
+                    }, 2000);
+                    submitting.value = false;
+                    localWrites.add(scoreRef.key);
+                    if (userWrite) { await userWrite; userWriteSucceeded = true; }
+                    if (optimisticUserId && pendingUserWrites.get(optimisticUserId) === userWrite) pendingUserWrites.delete(optimisticUserId);
+                    await set(scoreRef, { targetId: pts < 0 ? draft.targetId : sid, scorerId: sid, points: pts, timestamp: serverTimestamp() });
+                    if (disposed) return;
+                    // Firebase's resolved snapshot is authoritative, never a local draft.
+                    localWrites.delete(scoreRef.key);
+                    if (validScore(rawScores[scoreRef.key])) celebrateEntry(scoreRef.key);
+                    else pendingScores.add(scoreRef.key); // Server time may resolve after the write promise.
+                    status.value = 'Score recorded.';
+                } catch (error) {
+                    if (scoreRef) {
+                        localWrites.delete(scoreRef.key);
+                        // A delivered Firebase record is authoritative even if the
+                        // write promise subsequently reports a transport error.
+                        if (!validScore(rawScores[scoreRef.key])) {
+                            const remainingScores = { ...optimisticScores.value };
+                            delete remainingScores[scoreRef.key]; optimisticScores.value = remainingScores;
+                        } else {
+                            pendingScores.add(scoreRef.key);
+                        }
+                    }
+                    if (optimisticUserId && pendingUserWrites.get(optimisticUserId) === userWrite) pendingUserWrites.delete(optimisticUserId);
+                    if (optimisticUserId && !userWriteSucceeded && !usersMap.value[optimisticUserId] && !pendingUserWrites.has(optimisticUserId)) {
+                        const remainingUsers = { ...optimisticUsers.value };
+                        delete remainingUsers[optimisticUserId]; optimisticUsers.value = remainingUsers;
+                    }
+                    processData();
+                    // Restore the failed draft only if the operator has not begun
+                    // preparing a different entry while the write was in flight.
+                    if (generation === submissionGeneration && Object.values(form.value).every((value, index) => value === ['', '', '', 1][index])) form.value = draft;
+                    if (!validScore(rawScores[scoreRef?.key]) && !disposed) {
+                        if (generation === submissionGeneration) {
+                            clearTimeout(successTimer);
+                            showSuccess.value = false;
+                        }
+                        formError.value = `Score was not recorded: ${error.message || 'write failed'}. Your entry has been kept.`;
+                    } else if (!disposed && validScore(rawScores[scoreRef?.key])) {
+                        if (generation === submissionGeneration) flushCelebrations();
+                    }
+                }
+                finally { submitting.value = false; scoreWritePending.value = false; flushCelebrations(); }
+            };
+
+            const menuOpen = vRef(false), menuRoot = vRef(null), menuButton = vRef(null);
+            const menuItems = () => [...(menuRoot.value?.querySelectorAll('[role="menuitem"]') || [])];
+            const closeMenu = (restore = false) => { menuOpen.value = false; if (restore) menuButton.value?.focus(); };
+            const openMenu = async (index = null) => {
+                if (!canAdmin.value) return;
+                menuOpen.value = true;
+                if (index === null) return;
+                await nextTick(); menuItems()[index]?.focus();
+            };
+            const toggleMenu = () => menuOpen.value ? closeMenu(true) : openMenu();
+            const menuKeys = event => {
+                const items = menuItems(), index = items.indexOf(document.activeElement);
+                const target = { ArrowDown: (index + 1) % items.length, ArrowUp: (index + items.length - 1) % items.length, Home: 0, End: items.length - 1 }[event.key];
+                if (target !== undefined) { event.preventDefault(); items[target]?.focus(); }
+                if (event.key === 'Tab') closeMenu();
+            };
+            const outsideClick = event => { if (menuOpen.value && !menuRoot.value?.contains(event.target)) closeMenu(); };
+            const tabKeys = (event, id) => {
+                const index = tabs.findIndex(t => t.id === id);
+                const target = { ArrowRight: (index + 1) % tabs.length, ArrowLeft: (index + tabs.length - 1) % tabs.length, Home: 0, End: tabs.length - 1 }[event.key];
+                if (target === undefined) return;
+                event.preventDefault(); view.value = tabs[target].id; nextTick(() => document.getElementById(`tab-${view.value}`)?.focus());
+            };
+            const officeDialog = vRef(null), dialogView = vRef('players'), search = vRef(''), renameName = vRef('');
+            const selectedPlayerId = vRef(null), selectedEntryId = vRef(null), selectedPresentation = vRef(null);
+            const selectedPlayer = computed(() => allUsers.value.find(u => u.id === selectedPlayerId.value));
+            // Keep the review form available if another client removes the record;
+            // the transaction still rejects missing/stale data, preserving the draft.
+            const selectedEntry = computed(() => presentations.value[selectedEntryId.value] || selectedPresentation.value);
+            const filteredUsers = computed(() => allUsers.value.filter(u => normalizedName(u.name).includes(normalizedName(search.value))));
+            const dialogTitle = computed(() => ({ players: 'Manage Players', rename: 'Rename Player', retire: selectedPlayer.value?.isActive ? 'Retire Player' : 'Reactivate Player', review: 'Edit Entry', void: 'Void Entry', logic: 'Logic Report', achievement: activeBadge.value.title })[dialogView.value]);
+            const editForm = vRef({ scorerId: '', points: 1, targetId: '' });
+            const voidReasons = Object.freeze(['Duplicate entry', 'Wrong player', 'Wrong points', 'Other']), voidReason = vRef(voidReasons[0]), voidNote = vRef('');
+            let dialogOpener = null, rosterAction = 0, scoreBaseline = null, userBaseline = null;
+            const focusDialog = async () => { await nextTick(); if (!disposed) officeDialog.value?.querySelector('[data-initial-focus]')?.focus(); };
+            const openDialog = async (kind, fromMenu = false) => {
+                if (saving.value) return;
+                dialogOpener = fromMenu ? menuButton.value : document.activeElement;
+                dialogView.value = kind; dialogError.value = ''; closeMenu();
+                await nextTick(); if (disposed) return;
+                if (!officeDialog.value?.open) officeDialog.value?.showModal();
+                await focusDialog();
+            };
+            const discardDraft = () => { selectedEntryId.value = null; selectedPresentation.value = null; scoreBaseline = null; editForm.value = { scorerId: '', points: 1, targetId: '' }; voidReason.value = voidReasons[0]; voidNote.value = ''; dialogError.value = ''; };
+            const closeDialog = () => { if (saving.value) return; discardDraft(); officeDialog.value?.close(); };
+            const dialogClosed = () => {
+                if (saving.value) return;
+                discardDraft();
+                if (dialogOpener?.isConnected && !dialogOpener.disabled) dialogOpener.focus();
+                else document.getElementById(`tab-${view.value}`)?.focus();
+                dialogOpener = null;
+            };
+            const managePlayers = () => { if (canAdmin.value && !saving.value) { search.value = ''; openDialog('players', true); } };
+            const reviewEntries = () => { if (!canAdmin.value || saving.value) return; closeMenu(); view.value = 'recent'; nextTick(() => document.getElementById('tab-recent')?.focus()); };
+            const showLogic = () => { if (canAdmin.value) openDialog('logic', true); };
+            const showAchievementDelta = title => { if (!saving.value) { activeBadge.value = { title, desc: TOOLTIPS[title] || 'Details' }; openDialog('achievement'); } };
+            const selectPlayer = (user, kind) => {
+                if (!canAdmin.value || saving.value || !usersMap.value[user?.id]) return;
+                selectedPlayerId.value = user.id; userBaseline = copy(usersMap.value[user.id]);
+                renameName.value = userBaseline.name; rosterAction = kind === 'rename' ? 0 : 1;
+                dialogView.value = kind; dialogError.value = ''; focusDialog();
+            };
+            const beginRename = user => selectPlayer(user, 'rename');
+            const beginStatusChange = user => selectPlayer(user, 'retire');
+            const backToPlayers = async () => {
+                if (saving.value) return;
+                dialogView.value = 'players'; dialogError.value = ''; await nextTick();
+                const row = [...(officeDialog.value?.querySelectorAll('[data-player-id]') || [])].find(li => li.dataset.playerId === selectedPlayerId.value);
+                (row?.querySelectorAll('button')[rosterAction] || officeDialog.value?.querySelector('[data-initial-focus]'))?.focus();
+            };
+            const revision = record => record.revision ?? 0;
+            const revisionOK = record => Number.isSafeInteger(revision(record)) && revision(record) >= 0 && revision(record) < Number.MAX_SAFE_INTEGER;
+            const sameScore = (a, b) => !!a && !!b && revision(a) === revision(b) && ['scorerId', 'targetId', 'points', 'timestamp'].every(k => (a[k] ?? null) === (b[k] ?? null));
+            const sameUser = (a, b) => !!a && !!b && revision(a) === revision(b) && a.name === b.name && (a.isActive !== false) === (b.isActive !== false);
+            const conflictMessage = 'This record changed, was voided, or is no longer available. Close and reopen it to review the latest version; your draft has not been saved.';
+            const transactUser = async patch => {
+                if (!canAdmin.value || saving.value || !userBaseline) return;
+                const id = selectedPlayerId.value, baseline = copy(userBaseline);
+                saving.value = true; dialogError.value = '';
+                try {
+                    const result = await runTransaction(ref(fbDb, `users/${id}`), current => {
+                        if (!canAdmin.value || !sameUser(current, baseline) || !revisionOK(current)) return;
+                        return { ...current, ...patch, revision: revision(current) + 1 };
+                    }, { applyLocally: false });
+                    if (disposed) return;
+                    if (!result.committed) { dialogError.value = conflictMessage; return; }
+                    if (patch.isActive === false) { if (form.value.scorerId === id) form.value.scorerId = ''; if (form.value.targetId === id) form.value.targetId = ''; }
+                    status.value = 'Player updated. ID and all linked history preserved.';
+                    saving.value = false; await backToPlayers();
+                } catch (error) { if (!disposed) dialogError.value = `Player was not updated: ${error.message || 'write failed'}. Your input has been kept.`; }
+                finally { saving.value = false; }
+            };
+            const confirmRename = async () => {
+                if (!canAdmin.value || saving.value || dialogView.value !== 'rename' || !userBaseline) return;
+                dialogError.value = validateName(renameName.value, selectedPlayerId.value);
+                if (!dialogError.value) await transactUser({ name: renameName.value.trim() });
+            };
+            const confirmStatusChange = async () => {
+                if (canAdmin.value && !saving.value && dialogView.value === 'retire' && userBaseline) await transactUser({ isActive: userBaseline.isActive === false });
+            };
+            const reviewEntry = entry => {
+                if (!canAdmin.value || saving.value) return;
+                const latest = presentations.value[entry?.id], raw = rawScores[entry?.id];
+                if (!latest || !raw || raw.voided) return;
+                selectedEntryId.value = entry.id; selectedPresentation.value = copy(latest); scoreBaseline = copy(raw);
+                editForm.value = { scorerId: latest.scorerId, points: latest.points, targetId: latest.points < 0 ? latest.targetId : '' };
+                voidReason.value = voidReasons[0]; voidNote.value = ''; openDialog('review');
+            };
+            const hasEntryChanges = computed(() => {
+                const d = editForm.value, e = selectedEntry.value;
+                return !!e && !e.voided && (d.scorerId !== e.scorerId || d.points !== e.points || (d.points < 0 ? d.targetId : d.scorerId) !== e.targetId);
+            });
+            const changeEditPoints = delta => { if (canAdmin.value && !saving.value && dialogView.value === 'review' && selectedEntry.value) editForm.value.points = stepPoints(editForm.value.points, delta); };
+            // Scalars only: no undefined, NaN, server placeholders or mutable aliases.
+            const scoringSnapshot = (id, record) => ({ id, timestamp: record.timestamp, scorerId: record.scorerId, targetId: record.targetId || record.scorerId, points: record.points });
+            const transactScore = async (kind, draft, reason = '', note = '') => {
+                if (!canAdmin.value || saving.value || !scoreBaseline) return;
+                const id = selectedEntryId.value, baseline = copy(scoreBaseline);
+                // Generate exactly once, outside the retry callback. Keep existing
+                // keyed history (and legacy array indexes) without overwriting it.
+                const auditKey = kind === 'edit' ? push(ref(fbDb, `scores_v2/${id}/editHistory`)).key : null;
+                const auditTime = serverTimestamp();
+                saving.value = true; dialogError.value = '';
+                try {
+                    const result = await runTransaction(ref(fbDb, `scores_v2/${id}`), current => {
+                        if (!canAdmin.value || !current || current.voided || !validScore(current) || !revisionOK(current) || !sameScore(current, baseline)) return;
+                        const before = scoringSnapshot(id, current), next = { ...current, revision: revision(current) + 1 };
+                        if (kind === 'edit') {
+                            if (current.editHistory && Object.prototype.hasOwnProperty.call(current.editHistory, auditKey)) return;
+                            Object.assign(next, draft);
+                            next.editHistory = { ...(current.editHistory || {}), [auditKey]: { before, after: scoringSnapshot(id, next), editedAt: auditTime, actor: 'Commissioner' } };
+                        } else {
+                            // Other entries may have changed since selection. Replay
+                            // provides the latest presentation, not selection-time text.
+                            const latest = presentations.value[id];
+                            if (!latest || !sameScore(current, rawScores[id])) return;
+                            next.audit = { total: latest.total, streak: latest.streak, tier: latest.tier, color: latest.color, broken: latest.broken };
+                            next.voidAudit = { before, reason, note, voidedAt: auditTime, actor: 'Commissioner' };
+                            next.voided = true; next.voidedAt = auditTime; next.reason = note ? `${reason}: ${note}` : reason;
+                        }
+                        return next;
+                    }, { applyLocally: false });
+                    if (disposed) return;
+                    if (!result.committed) { dialogError.value = conflictMessage; return; }
+                    status.value = `Entry ${kind === 'edit' ? 'edited' : 'voided'}. Original time and audit history preserved; standings recalculated.`;
+                    saving.value = false; closeDialog();
+                } catch (error) { if (!disposed) dialogError.value = `Entry was not saved: ${error.message || 'write failed'}. Your input has been kept.`; }
+                finally { saving.value = false; }
+            };
+            const saveEntryChanges = async () => {
+                if (!canAdmin.value || saving.value || dialogView.value !== 'review' || !scoreBaseline) return;
+                const d = { ...editForm.value }; dialogError.value = '';
+                if (!sameScore(rawScores[selectedEntryId.value], scoreBaseline) || rawScores[selectedEntryId.value]?.voided) { dialogError.value = conflictMessage; return; }
+                if (!usersMap.value[d.scorerId]) { dialogError.value = 'Choose a known player.'; return; }
+                if (!Number.isSafeInteger(d.points) || d.points === 0) { dialogError.value = 'Use a nonzero safe whole number of points.'; return; }
+                if (d.points < 0 && !usersMap.value[d.targetId]) { dialogError.value = 'Choose a known victim for a penalty.'; return; }
+                if (!hasEntryChanges.value) return;
+                await transactScore('edit', { scorerId: d.scorerId, points: d.points, targetId: d.points < 0 ? d.targetId : d.scorerId });
+            };
+            const beginVoid = () => {
+                if (!canAdmin.value || saving.value || dialogView.value !== 'review' || !selectedEntry.value || selectedEntry.value.voided) return;
+                voidReason.value = voidReasons[0]; voidNote.value = ''; dialogError.value = ''; dialogView.value = 'void'; focusDialog();
+            };
+            const backToEdit = () => { if (canAdmin.value && !saving.value && dialogView.value === 'void') { dialogView.value = 'review'; dialogError.value = ''; focusDialog(); } };
+            const confirmVoid = async () => {
+                if (!canAdmin.value || saving.value || dialogView.value !== 'void') return;
+                const reason = voidReason.value, note = reason === 'Other' ? voidNote.value.trim() : '';
+                if (!voidReasons.includes(reason)) { dialogError.value = 'Choose a listed void reason.'; return; }
+                if (note.length > 240) { dialogError.value = 'Use 240 characters or fewer for the optional note.'; return; }
+                await transactScore('void', null, reason, note);
+            };
+
+            return { view, tabs, allUsers, activeUsers, retiredCount, monthly, hallOfFame, lifetime, logs, diagnostics, allTimeHigh, form, formError, changePoints, submitScore, overlay, dismissOverlay, activeBadge, currentSeasonName, seasonCountdown, activityDateLabel, entryTime, getName, entrySummary, scoringSummary, historyRows, submitting, scoreWritePending, showSuccess, showAchievementDelta, isAdmin, isReadOnly, canAdmin, dataReady, dataError, status, saving,
+                menuOpen, menuRoot, menuButton, toggleMenu, openMenu, closeMenu, menuKeys, tabKeys, managePlayers, reviewEntries, showLogic,
+                officeDialog, dialogView, dialogTitle, dialogError, dialogClosed, closeDialog, search, filteredUsers, selectedPlayer, renameName, beginRename, confirmRename, beginStatusChange, confirmStatusChange, backToPlayers,
+                selectedEntry, editForm, hasEntryChanges, changeEditPoints, saveEntryChanges, beginVoid, backToEdit, voidReasons, voidReason, voidNote, reviewEntry, confirmVoid };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
