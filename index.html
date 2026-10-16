@@ -49,6 +49,8 @@
         .void-copy { text-decoration: line-through; color: #a3adba; }
         .audit-reason { white-space: pre-wrap; overflow-wrap: anywhere; }
         .modal-box { max-height: calc(100dvh - 3rem); }
+        [data-testid="entry-card"] > form { flex: none; }
+        [data-testid="entry-card"] > .app-footer { margin-top: auto; padding-top: 12px; flex-shrink: 0; }
         button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid #FBBD23; outline-offset: 3px; }
         @media (orientation: landscape) and (min-width: 960px) {
             body.bg-base-300 { padding-bottom: 0; }
