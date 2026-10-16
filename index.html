@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.4.0</title>
+    <title>ECBA Slam Jam 2.4.1</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -45,6 +45,9 @@
         .score-display > span { text-align: right; }
         .score-delta { font-size: 11px; font-weight: 600; letter-spacing: 0; color: #94a3b8; text-align: right; }
         .score-delta-negative { color: #ff8585; }
+        #commissioner-menu [role="menuitem"],
+        #commissioner-menu [role="menuitem"]:hover,
+        #commissioner-menu [role="menuitem"]:focus { color: #e2e8f0; }
         .points-heading { font-size: 18px; font-weight: 900; letter-spacing: -.9px; }
         .points-heading > span:first-child { font-size: 10px; letter-spacing: 1px; }
         .review-action { min-height: 44px; min-width: 68px; height: auto; }
@@ -128,7 +131,7 @@
                          class="w-32 h-32 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95"
                          alt="ECBA Logo">
                 </button>
-                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.4.0</p>
+                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.4.1</p>
             </div>
         </div>
 
@@ -686,7 +689,12 @@
             const menuOpen = vRef(false), menuRoot = vRef(null), menuButton = vRef(null);
             const menuItems = () => [...(menuRoot.value?.querySelectorAll('[role="menuitem"]') || [])];
             const closeMenu = (restore = false) => { menuOpen.value = false; if (restore) menuButton.value?.focus(); };
-            const openMenu = async (index = 0) => { if (!canAdmin.value) return; menuOpen.value = true; await nextTick(); menuItems()[index]?.focus(); };
+            const openMenu = async (index = null) => {
+                if (!canAdmin.value) return;
+                menuOpen.value = true;
+                if (index === null) return;
+                await nextTick(); menuItems()[index]?.focus();
+            };
             const toggleMenu = () => menuOpen.value ? closeMenu(true) : openMenu();
             const menuKeys = event => {
                 const items = menuItems(), index = items.indexOf(document.activeElement);
