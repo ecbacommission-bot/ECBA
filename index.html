@@ -17,6 +17,8 @@
         .log-entry { font-family: 'JetBrains Mono', monospace; border-left-width: 4px; padding-left: 0.75rem; }
         .achievement-badge { color: #FBBD23; }
         .achievement-badge:active { transform: scale(0.9); opacity: 0.8; }
+        .title-ball { position: relative; display: inline-block; width: .98em; height: .74em; margin-right: .12em; overflow: hidden; vertical-align: -.04em; border-radius: 50%; transform: rotate(-17deg); background: radial-gradient(ellipse at 32% 24%, #fff5 0 8%, transparent 31%), radial-gradient(ellipse at 36% 25%, #ffe0a3 0, #ffb94f 24%, #ff922f 52%, #f6793b 78%, #df6958 100%); box-shadow: inset -3px -4px 7px #9e4b3150, inset 2px 2px 5px #fff6, 0 2px 4px #0005; }
+        .title-ball::after { content: ''; position: absolute; width: 53%; height: 22%; left: 19%; top: 13%; border-radius: 50%; transform: rotate(-24deg); background: linear-gradient(90deg, #fff8, #fff0); filter: blur(1px); }
         .pr-badge { 
             font-weight: 900;
             font-style: italic;
@@ -78,7 +80,7 @@
 
 <div id="app" v-cloak class="container mx-auto p-4 max-w-5xl">
     <header class="text-center py-10 mb-4">
-        <h1 class="text-6xl font-black italic tracking-tighter text-warning uppercase drop-shadow-lg">🏀 ECBA Slam Jam</h1>
+        <h1 class="text-6xl font-black italic tracking-tighter text-warning uppercase drop-shadow-lg"><span class="title-ball" role="img" aria-label="Orange ping-pong ball"></span>ECBA Slam Jam</h1>
         <p class="text-[10px] opacity-30 font-bold tracking-[0.4em] uppercase mt-2">Endpoint Configuration Basketball Authority</p>
     </header>
 
@@ -305,7 +307,7 @@
 
             const fbApp = initializeApp({ apiKey: "AIzaSyAIVbirwYrXHTawV71ABWaF2yUZ1FvTb9g", authDomain: "ecba-slamjam.firebaseapp.com", databaseURL: "https://ecba-slamjam-default-rtdb.firebaseio.com", projectId: "ecba-slamjam" });
             const fbDb = getDatabase(fbApp), usersRef = ref(fbDb, 'users'), scoresRef = ref(fbDb, 'scores_v2');
-            const usersMap = vRef({}), presentations = vRef({}); let rawScores = {};
+            const usersMap = vRef({}), optimisticUsers = vRef({}), optimisticScores = vRef({}), presentations = vRef({}); let rawScores = {};
             const copy = value => JSON.parse(JSON.stringify(value));
             const getName = id => usersMap.value[id]?.name || 'Unknown';
             const lexical = (a, b) => a < b ? -1 : a > b ? 1 : 0;
@@ -319,7 +321,7 @@
                 : `${getName(entry.scorerId)} scored ${entry.points}${entry.streak ? ` and is ${entry.tier} (Streak ${entry.streak})` : ''}. (Total: ${entry.total})`;
             const scoringSummary = entry => entry.points < 0 ? `${getName(entry.scorerId)} punished ${getName(entry.targetId)} (${entry.points})` : `${getName(entry.scorerId)} scored +${entry.points}`;
 
-            const allUsers = computed(() => Object.entries(usersMap.value).map(([id, u]) => ({ id, name: u.name, isActive: u.isActive !== false })).sort((a,b) => a.name.localeCompare(b.name)));
+            const allUsers = computed(() => Object.entries({ ...usersMap.value, ...optimisticUsers.value }).map(([id, u]) => ({ id, name: u.name, isActive: u.isActive !== false })).sort((a,b) => a.name.localeCompare(b.name)));
             const activeUsers = computed(() => allUsers.value.filter(u => u.isActive));
             const retiredCount = computed(() => allUsers.value.length - activeUsers.value.length);
             // One office calendar, regardless of the viewing device's timezone.
@@ -371,7 +373,7 @@
                 seasonDate.value = new Date();
                 const targetSeason = getCalendarDate(seasonDate.value).season;
                 processedSeason = targetSeason;
-                const sorted = Object.entries(rawScores).filter(([, d]) => validScore(d)).sort((a, b) => a[1].timestamp - b[1].timestamp || lexical(a[0], b[0]));
+                const sorted = Object.entries({ ...rawScores, ...optimisticScores.value }).filter(([, d]) => validScore(d)).sort((a, b) => a[1].timestamp - b[1].timestamp || lexical(a[0], b[0]));
                 sorted.forEach(([id, d], order) => {
                     const date = getCalendarDate(new Date(d.timestamp)), mk = date.season, isM = mk === targetSeason;
                     // Each historical season also gets its original streak presentation.
@@ -488,6 +490,13 @@
             const receiveScores = snapshot => {
                 if (disposed) return;
                 rawScores = snapshot.val() || {}; processData();
+                const confirmedOptimistic = Object.keys(optimisticScores.value).filter(id => validScore(rawScores[id]));
+                if (confirmedOptimistic.length) {
+                    const remaining = { ...optimisticScores.value };
+                    confirmedOptimistic.forEach(id => delete remaining[id]);
+                    optimisticScores.value = remaining;
+                    processData();
+                }
                 const candidates = [];
                 for (const [id, d] of Object.entries(rawScores)) {
                     const unseen = !observedScores.has(id);
@@ -521,7 +530,17 @@
                 event.target?.closest?.('button')?.click();
             };
             onMounted(() => {
-                unsubscribeUsers = onValue(usersRef, s => { if (disposed) return; usersMap.value = s.val() || {}; usersReady = true; dataReady.value = usersReady && scoresReady && !dataError.value; processData(); }, subscriptionError);
+                unsubscribeUsers = onValue(usersRef, s => {
+                    if (disposed) return;
+                    usersMap.value = s.val() || {};
+                    const confirmed = Object.keys(optimisticUsers.value).filter(id => usersMap.value[id]);
+                    if (confirmed.length) {
+                        const remaining = { ...optimisticUsers.value };
+                        confirmed.forEach(id => delete remaining[id]);
+                        optimisticUsers.value = remaining;
+                    }
+                    usersReady = true; dataReady.value = usersReady && scoresReady && !dataError.value; processData();
+                }, subscriptionError);
                 unsubscribeScores = onValue(scoresRef, receiveScores, subscriptionError);
                 // Recheck while open, and immediately after a sleeping/backgrounded kiosk returns.
                 seasonTimer = setInterval(checkSeason, 1000);
@@ -584,30 +603,38 @@
                 if (existing) sid = existing.id;
                 if (!name && !activeUsers.value.some(u => u.id === sid)) return;
                 submitting.value = true;
+                let scoreRef = null, optimisticUserId = null;
                 try {
                     if (name && !existing) {
                         if (!createdPlayer || createdPlayer.name !== name) createdPlayer = { name, id: push(usersRef).key, saved: false };
                         sid = createdPlayer.id;
                         if (!createdPlayer.saved) {
-                            await set(ref(fbDb, `users/${sid}`), { name, isActive: true });
-                            createdPlayer.saved = true;
+                            optimisticUserId = sid;
+                            optimisticUsers.value = { ...optimisticUsers.value, [sid]: { name, isActive: true } };
                         }
                     }
-                    const scoreRef = push(scoresRef);
+                    scoreRef = push(scoresRef);
+                    optimisticScores.value = { ...optimisticScores.value, [scoreRef.key]: {
+                        scorerId: sid, targetId: pts < 0 ? draft.targetId : sid, points: pts, timestamp: Date.now()
+                    } };
+                    processData();
+                    // Optimistically clear the submitted draft so the next entry can
+                    // be prepared during Firebase's asynchronous confirmation.
+                    if (Object.keys(draft).every(key => form.value[key] === draft[key])) {
+                        form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
+                    }
                     localWrites.add(scoreRef.key);
-                    try { await set(scoreRef, { targetId: pts < 0 ? draft.targetId : sid, scorerId: sid, points: pts, timestamp: serverTimestamp() }); }
-                    catch (error) { localWrites.delete(scoreRef.key); throw error; }
+                    if (name && !existing && !createdPlayer.saved) {
+                        await set(ref(fbDb, `users/${sid}`), { name, isActive: true });
+                        createdPlayer.saved = true;
+                    }
+                    await set(scoreRef, { targetId: pts < 0 ? draft.targetId : sid, scorerId: sid, points: pts, timestamp: serverTimestamp() });
                     if (disposed) return;
                     // Firebase's resolved snapshot is authoritative, never a local draft.
                     localWrites.delete(scoreRef.key);
                     createdPlayer = null; showSuccess.value = true;
                     if (validScore(rawScores[scoreRef.key])) celebrateEntry(scoreRef.key);
                     else pendingScores.add(scoreRef.key); // Server time may resolve after the write promise.
-                    // The submitted draft is immutable; never clear a next entry
-                    // the operator has started preparing during confirmation.
-                    if (Object.keys(draft).every(key => form.value[key] === draft[key])) {
-                        form.value = { scorerId: '', newPlayer: '', targetId: '', points: 1 };
-                    }
                     status.value = 'Score recorded.';
                     clearTimeout(successTimer);
                     successTimer = setTimeout(() => {
@@ -615,7 +642,22 @@
                         showSuccess.value = false;
                         flushCelebrations();
                     }, 2000);
-                } catch (error) { if (!disposed) formError.value = `Score was not recorded: ${error.message || 'write failed'}. Your entry has been kept.`; }
+                } catch (error) {
+                    if (scoreRef) {
+                        localWrites.delete(scoreRef.key);
+                        const remainingScores = { ...optimisticScores.value };
+                        delete remainingScores[scoreRef.key]; optimisticScores.value = remainingScores;
+                    }
+                    if (optimisticUserId && !createdPlayer?.saved && !usersMap.value[optimisticUserId]) {
+                        const remainingUsers = { ...optimisticUsers.value };
+                        delete remainingUsers[optimisticUserId]; optimisticUsers.value = remainingUsers;
+                    }
+                    processData();
+                    // Restore the failed draft only if the operator has not begun
+                    // preparing a different entry while the write was in flight.
+                    if (Object.values(form.value).every((value, index) => value === ['', '', '', 1][index])) form.value = draft;
+                    if (!disposed) formError.value = `Score was not recorded: ${error.message || 'write failed'}. Your entry has been kept.`;
+                }
                 finally { submitting.value = false; flushCelebrations(); }
             };
 
