@@ -118,7 +118,7 @@
                     <select v-model="form.targetId" aria-label="Choose victim" class="select select-error select-sm w-full font-bold text-center"><option value="">-- Choose Victim --</option><option v-for="u in activeUsers" :key="u.id" :value="u.id">{{ u.name }}</option></select>
                 </div>
                 <p v-if="formError" class="text-error text-xs" role="alert">{{ formError }}</p>
-                <button type="submit" :disabled="submitting || scoreWritePending || !dataReady" :class="showSuccess ? 'btn-success' : 'btn-warning'" class="btn btn-block font-black uppercase tracking-widest mt-2 transition-all">
+                <button type="submit" :disabled="submitting || !dataReady" :class="showSuccess ? 'btn-success' : 'btn-warning'" class="btn btn-block font-black uppercase tracking-widest mt-2 transition-all">
                     <span v-if="submitting" class="loading loading-spinner"></span><span v-else-if="showSuccess">✅ Recorded!</span><span v-else>Submit Score</span>
                 </button>
                 </fieldset>
