@@ -233,7 +233,7 @@
     <dialog ref="officeDialog" class="modal modal-bottom sm:modal-middle backdrop-blur-sm" aria-labelledby="office-title" @cancel="saving && $event.preventDefault()" @close="dialogClosed">
         <div class="modal-box bg-base-100 border border-warning/30 shadow-2xl" :class="dialogView === 'rules' ? 'max-w-2xl' : dialogView === 'players' ? 'max-w-xl' : ''">
             <p class="text-[10px] text-warning uppercase font-bold tracking-widest">{{ dialogView === 'rules' ? 'Office of Recreational Jurisprudence' : "Commissioner's Office" }}</p>
-            <h2 id="office-title" class="font-black text-warning uppercase tracking-tighter text-2xl italic mt-1">{{ dialogTitle }}</h2>
+            <h2 id="office-title" :tabindex="dialogView === 'rules' ? -1 : null" :autofocus="dialogView === 'rules'" class="font-black text-warning uppercase tracking-tighter text-2xl italic mt-1">{{ dialogTitle }}</h2>
             <fieldset :disabled="saving" :aria-busy="saving">
                 <template v-if="dialogView === 'players'">
                     <p class="text-xs opacity-60 mt-2">{{ activeUsers.length }} active · {{ retiredCount }} retired · {{ allUsers.length }} total. Retired players keep their history, but leave scoring dropdowns.</p>
@@ -307,7 +307,7 @@
                             <p>Compete with integrity, good sportsmanship, and—above all—<strong>have fun</strong>. Unsportsmanlike conduct may earn a <strong>one-week suspension</strong>; lesser violations may earn a day or hourly suspension. Rule changes require a <strong>majority vote of active Endpoint scoring members</strong>.</p>
                             <p>Regulation hoop: <strong>19.5 inches above the ground</strong>, <strong>2.5-inch diameter</strong>. The Authority regrets that charisma is not an approved unit of measurement.</p>
                         </section>
-                        <p class="text-[11px] opacity-60 mt-4">Rules reference only. This document does not change or guarantee automatic enforcement of scoring, multipliers, penalties, or achievement criteria.</p>
+                        <p class="text-[11px] opacity-60 mt-4">In playing the ECBA Slam Jam you lose all rights to your name, image, likeness. Any intellectual property you discuss or build in the vicinity of the rim will now be property of Endpoint Configuration.</p>
                     </div>
                     <div class="modal-action"><button type="button" @click="closeDialog" class="btn btn-warning btn-sm" data-initial-focus>So ratified. Return to court.</button></div>
                 </template>
@@ -764,7 +764,18 @@
             const editForm = vRef({ scorerId: '', points: 1, targetId: '' });
             const voidReasons = Object.freeze(['Duplicate entry', 'Wrong player', 'Wrong points', 'Other']), voidReason = vRef(voidReasons[0]), voidNote = vRef('');
             let dialogOpener = null, rosterAction = 0, scoreBaseline = null, userBaseline = null;
-            const focusDialog = async () => { await nextTick(); if (!disposed) officeDialog.value?.querySelector('[data-initial-focus]')?.focus(); };
+            const focusDialog = async () => {
+                await nextTick();
+                if (disposed) return;
+                if (dialogView.value === 'rules') {
+                    document.getElementById('office-title')?.focus({ preventScroll: true });
+                    const box = officeDialog.value?.querySelector('.modal-box');
+                    if (box) box.scrollTop = 0;
+                    if (officeDialog.value) officeDialog.value.scrollTop = 0;
+                } else {
+                    officeDialog.value?.querySelector('[data-initial-focus]')?.focus();
+                }
+            };
             const openDialog = async (kind, fromMenu = false) => {
                 if (saving.value) return;
                 dialogOpener = fromMenu ? menuButton.value : document.activeElement;
