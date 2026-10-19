@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.4.2</title>
+    <title>ECBA Slam Jam 2.4.3</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -136,7 +136,7 @@
                          class="w-32 h-32 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95"
                          alt="ECBA Logo">
                 </button>
-                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.4.2</p>
+                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.4.3</p>
             </div>
         </div>
 
@@ -455,7 +455,7 @@
                     else if (uid === topP && pCnt[uid] >= 10) title = "Punisher"; 
                     else if (uid === topV && vCnt[uid] >= 10) title = "The Punished";
                     else if (dMax >= 25) title = "Overachiever";
-                    return { id: uid, name: getName(uid), pts, lastChange: lastChange[uid] ?? null, title, isPR: pts > (hb[uid] || 0) && (hb[uid] || 0) > 0, isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastS, icon: replayMonth === targetSeason && globalCurP === uid ? TIERS[Math.min(globalCurS, 6)]?.icon : '' };
+                    return { id: uid, name: getName(uid), pts, lastChange: lastChange[uid] ?? null, title, isPR: pts > (hb[uid] || 0), isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastS, icon: replayMonth === targetSeason && globalCurP === uid ? TIERS[Math.min(globalCurS, 6)]?.icon : '' };
                 }).sort((a,b)=>b.pts-a.pts || (histOrder[targetSeason]?.[b.id] ?? -1) - (histOrder[targetSeason]?.[a.id] ?? -1));
 
                 lifetime.value = Object.entries(lTot).map(([uid, pts]) => ({ id: uid, name: getName(uid), pts })).sort((a,b)=>b.pts-a.pts || lexical(a.id, b.id));
