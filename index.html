@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.4.3</title>
+    <title>ECBA Slam Jam 2.5.0</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -59,6 +59,15 @@
         .season-capsule .season-time { color: #a3b3ca; font-variant-numeric: tabular-nums; }
         .season-capsule .season-time strong { color: #eff7ff; font-weight: 800; }
         .modal-box { max-height: calc(100dvh - 3rem); }
+        .rules-trigger { color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+        .ball-trigger { display: inline-block; color: inherit; font: inherit; background: none; border: 0; padding: 0; cursor: pointer; touch-action: pan-x pan-y; }
+        .ball-trigger .title-ball { pointer-events: none; }
+        .rules-summary { font-size: 13px; line-height: 1.55; color: #cbd5e1; }
+        .rules-summary section { margin-top: 14px; }
+        .rules-summary h3 { margin-bottom: 4px; color: #ffc46f; font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+        .rules-summary p { margin: 4px 0; }
+        .rules-summary strong { color: #f1f5f9; }
+        .rules-summary ul { margin: 4px 0; padding-left: 18px; list-style: disc; }
         [data-testid="entry-card"] > form { flex: none; }
         [data-testid="entry-card"] > .app-footer { margin-top: auto; padding-top: 12px; flex-shrink: 0; }
         button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid #FBBD23; outline-offset: 3px; }
@@ -90,16 +99,17 @@
 
 <div id="app" v-cloak class="container mx-auto p-4 max-w-5xl">
     <header class="text-center py-10 mb-4">
-        <h1 class="text-6xl font-black italic tracking-tighter text-warning uppercase drop-shadow-lg"><span class="title-ball" role="img" aria-label="Orange ping-pong ball"></span>ECBA Slam Jam</h1>
+        <h1 class="text-6xl font-black italic tracking-tighter text-warning uppercase drop-shadow-lg"><button type="button" class="ball-trigger" @click.stop="tapCommissionerBall" aria-label="Orange ping-pong ball — activate three times quickly to toggle Commissioner mode"><span class="title-ball" aria-hidden="true"></span></button><button type="button" class="rules-trigger" @click="showRules" aria-label="ECBA Slam Jam — open the abridged constitution" aria-haspopup="dialog">ECBA Slam Jam</button></h1>
         <p class="text-[10px] opacity-30 font-bold tracking-[0.4em] uppercase mt-2">Endpoint Configuration Basketball Authority</p>
     </header>
 
     <div v-if="canAdmin" class="office-toolbar flex justify-end relative mb-4" ref="menuRoot" @keydown.esc.stop.prevent="closeMenu(true)">
-        <button id="commissioner-button" ref="menuButton" type="button" @click="toggleMenu" @keydown.down.prevent="openMenu(0)" @keydown.up.prevent="openMenu(2)" class="btn btn-sm btn-ghost text-warning gap-2 review-action" aria-haspopup="menu" :aria-expanded="menuOpen" aria-controls="commissioner-menu">⚙️ Commissioner <span aria-hidden="true">▾</span></button>
+        <button id="commissioner-button" ref="menuButton" type="button" @click="toggleMenu" @keydown.down.prevent="openMenu(0)" @keydown.up.prevent="openMenu(3)" class="btn btn-sm btn-ghost text-warning gap-2 review-action" aria-haspopup="menu" :aria-expanded="menuOpen" aria-controls="commissioner-menu">⚙️ Commissioner <span aria-hidden="true">▾</span></button>
         <ul v-if="menuOpen" id="commissioner-menu" role="menu" aria-labelledby="commissioner-button" @keydown="menuKeys" class="menu bg-base-100 border border-white/10 rounded-box shadow-2xl absolute right-0 top-full mt-1 z-30 w-52 p-2">
             <li role="none"><button type="button" role="menuitem" tabindex="-1" @click="managePlayers">Manage Players</button></li>
             <li role="none"><button type="button" role="menuitem" tabindex="-1" @click="reviewEntries">Review Entries</button></li>
             <li role="none"><button type="button" role="menuitem" tabindex="-1" @click="showLogic">Logic Report</button></li>
+            <li role="none" class="border-t border-white/10 mt-1 pt-1"><button type="button" role="menuitem" tabindex="-1" @click="exitCommissionerMode" :disabled="saving || scoreWritePending">Exit Commissioner Mode</button></li>
         </ul>
     </div>
     <p v-if="dataError" class="text-error text-xs mb-2" role="alert">{{ dataError }}</p>
@@ -136,7 +146,7 @@
                          class="w-32 h-32 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95"
                          alt="ECBA Logo">
                 </button>
-                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.4.3</p>
+                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.5.0</p>
             </div>
         </div>
 
@@ -221,8 +231,8 @@
     </div>
 
     <dialog ref="officeDialog" class="modal modal-bottom sm:modal-middle backdrop-blur-sm" aria-labelledby="office-title" @cancel="saving && $event.preventDefault()" @close="dialogClosed">
-        <div class="modal-box bg-base-100 border border-warning/30 shadow-2xl" :class="dialogView === 'players' ? 'max-w-xl' : ''">
-            <p class="text-[10px] text-warning uppercase font-bold tracking-widest">Commissioner's Office</p>
+        <div class="modal-box bg-base-100 border border-warning/30 shadow-2xl" :class="dialogView === 'rules' ? 'max-w-2xl' : dialogView === 'players' ? 'max-w-xl' : ''">
+            <p class="text-[10px] text-warning uppercase font-bold tracking-widest">{{ dialogView === 'rules' ? 'Office of Recreational Jurisprudence' : "Commissioner's Office" }}</p>
             <h2 id="office-title" class="font-black text-warning uppercase tracking-tighter text-2xl italic mt-1">{{ dialogTitle }}</h2>
             <fieldset :disabled="saving" :aria-busy="saving">
                 <template v-if="dialogView === 'players'">
@@ -272,6 +282,34 @@
                     <p class="text-xs opacity-60 mt-2">Current season · recomputed from non-voided entries.</p>
                     <div class="overflow-x-auto mt-4"><table class="table table-xs w-full font-mono text-[10px] uppercase"><thead class="text-info"><tr><th>Player</th><th>Punished (10)</th><th>Victim (10)</th><th>Streak (15)</th><th>Max Day (25)</th></tr></thead><tbody><tr v-for="d in diagnostics" :key="d.id" class="border-b border-white/5"><td class="font-bold text-white">{{ d.name }}</td><td :class="d.pActs >= 10 ? 'text-success' : 'opacity-40'">{{ d.pActs }}</td><td :class="d.vPts >= 10 ? 'text-success' : 'opacity-40'">{{ d.vPts }}</td><td :class="d.streak >= 15 ? 'text-success' : 'opacity-40'">{{ d.streak }}</td><td :class="d.dMax >= 25 ? 'text-success' : 'opacity-40'">{{ d.dMax }}</td></tr></tbody></table></div>
                     <div class="modal-action"><button type="button" @click="closeDialog" class="btn btn-sm" data-initial-focus>Close</button></div>
+                </template>
+                <template v-else-if="dialogView === 'rules'">
+                    <div class="rules-summary">
+                        <p class="text-xs opacity-70 italic mt-2">An abridged instrument for the orderly administration of disproportionately important office basketball. The full Constitution remains the governing authority.</p>
+                        <section><h3>I. Know Thy Jurisdiction</h3>
+                            <p>Make a ping-pong ball in the regulation hoop. A successful shot earns:</p>
+                            <ul><li><strong>1 point:</strong> right-hand table corner — <strong>6 ft 8 in</strong>.</li><li><strong>2 points:</strong> behind the cubicle corner — <strong>9 ft</strong>.</li><li><strong>3 points:</strong> entrance of the first cubicle — <strong>12 ft 8 in</strong>.</li></ul>
+                            <p><strong>Bounce shots:</strong> the bounce location determines the zone. <strong>Trick shots:</strong> call the shot beforehand and suitably impress the audience for <strong>5 points</strong>. Routine theatrics may be downgraded to ordinary scoring.</p>
+                        </section>
+                        <section><h3>II. The Escalation of Excellence</h3>
+                            <p>Consecutive made shots earn <strong>1×, 2×, 3×, 4×…</strong> the shot's standard value. For example, consecutive 2-point shots earn <strong>2, 4, 6, 8…</strong> points. Enter the resulting point value yourself; this summary does not add an automatic multiplier.</p>
+                        </section>
+                        <section><h3>III. Punisher Ball: Authorized Redistribution</h3>
+                            <p>The Authority maintains <strong>two Punisher Balls: small 3D-printed skulls</strong>. Make a shot with either skull to deduct the shooting zone's point value from another player. A deduction worth multiple points may be <strong>split among several players</strong>. Nobody may be reduced below <strong>zero</strong>; someone already at zero cannot lose points.</p>
+                        </section>
+                        <section><h3>IV. Seasons &amp; Historical Glory</h3>
+                            <p>Season scores reset on the <strong>first of every month</strong>. Lifetime totals are tracked separately, and <strong>penalties do not reduce lifetime points</strong>. Use the ECBA-approved app and <strong>submit your own scores</strong>; unapproved scorekeeping earns a warning.</p>
+                        </section>
+                        <section><h3>V. Decorations, in Constitutional Order</h3>
+                            <ul><li><strong>Juggernaut:</strong> one streak of 10+ consecutive positive scores.</li><li><strong>Praetorian / Centurion:</strong> 150+ / 100+ points in the month.</li><li><strong>Godslayer:</strong> end three Godlike streaks.</li><li><strong>Overachiever:</strong> 25+ points in a single day.</li><li><strong>Grim Reaper:</strong> ensure every other player has a skull.</li><li><strong>Punisher:</strong> inflict the most penalty points on others.</li><li><strong>The Punished:</strong> receive the most negative points that month.</li></ul>
+                        </section>
+                        <section><h3>VI. Decorum, Democracy &amp; Basket Specifications</h3>
+                            <p>Compete with integrity, good sportsmanship, and—above all—<strong>have fun</strong>. Unsportsmanlike conduct may earn a <strong>one-week suspension</strong>; lesser violations may earn a day or hourly suspension. Rule changes require a <strong>majority vote of active Endpoint scoring members</strong>.</p>
+                            <p>Regulation hoop: <strong>19.5 inches above the ground</strong>, <strong>2.5-inch diameter</strong>. The Authority regrets that charisma is not an approved unit of measurement.</p>
+                        </section>
+                        <p class="text-[11px] opacity-60 mt-4">Rules reference only. This document does not change or guarantee automatic enforcement of scoring, multipliers, penalties, or achievement criteria.</p>
+                    </div>
+                    <div class="modal-action"><button type="button" @click="closeDialog" class="btn btn-warning btn-sm" data-initial-focus>So ratified. Return to court.</button></div>
                 </template>
                 <template v-else-if="dialogView === 'achievement'"><p class="py-4 font-bold text-slate-300">{{ activeBadge.desc }}</p><div class="modal-action"><button type="button" @click="closeDialog" class="btn btn-warning btn-sm" data-initial-focus>Close</button></div></template>
             </fieldset>
@@ -722,7 +760,7 @@
             // the transaction still rejects missing/stale data, preserving the draft.
             const selectedEntry = computed(() => presentations.value[selectedEntryId.value] || selectedPresentation.value);
             const filteredUsers = computed(() => allUsers.value.filter(u => normalizedName(u.name).includes(normalizedName(search.value))));
-            const dialogTitle = computed(() => ({ players: 'Manage Players', rename: 'Rename Player', retire: selectedPlayer.value?.isActive ? 'Retire Player' : 'Reactivate Player', review: 'Edit Entry', void: 'Void Entry', logic: 'Logic Report', achievement: activeBadge.value.title })[dialogView.value]);
+            const dialogTitle = computed(() => ({ rules: 'The ECBA Constitution, Abridged', players: 'Manage Players', rename: 'Rename Player', retire: selectedPlayer.value?.isActive ? 'Retire Player' : 'Reactivate Player', review: 'Edit Entry', void: 'Void Entry', logic: 'Logic Report', achievement: activeBadge.value.title })[dialogView.value]);
             const editForm = vRef({ scorerId: '', points: 1, targetId: '' });
             const voidReasons = Object.freeze(['Duplicate entry', 'Wrong player', 'Wrong points', 'Other']), voidReason = vRef(voidReasons[0]), voidNote = vRef('');
             let dialogOpener = null, rosterAction = 0, scoreBaseline = null, userBaseline = null;
@@ -747,6 +785,29 @@
             const managePlayers = () => { if (canAdmin.value && !saving.value) { search.value = ''; openDialog('players', true); } };
             const reviewEntries = () => { if (!canAdmin.value || saving.value) return; closeMenu(); view.value = 'recent'; nextTick(() => document.getElementById('tab-recent')?.focus()); };
             const showLogic = () => { if (canAdmin.value) openDialog('logic', true); };
+            const showRules = () => { if (!saving.value) return openDialog('rules'); };
+            const setCommissionerMode = enabled => {
+                if (disposed || saving.value || scoreWritePending.value) return;
+                const url = new URL(window.location.href);
+                if (enabled) {
+                    url.searchParams.set('admin', 'true');
+                    url.searchParams.delete('viewonly');
+                } else {
+                    url.searchParams.delete('admin');
+                }
+                window.location.assign(url.href);
+            };
+            const exitCommissionerMode = () => { if (isAdmin.value) setCommissionerMode(false); };
+            let ballTapCount = 0, lastBallTap = null;
+            const tapCommissionerBall = () => {
+                if (disposed || saving.value || scoreWritePending.value) { ballTapCount = 0; lastBallTap = null; return; }
+                const now = Date.now();
+                ballTapCount = lastBallTap !== null && now - lastBallTap < 600 ? ballTapCount + 1 : 1;
+                lastBallTap = now;
+                if (ballTapCount !== 3) return;
+                ballTapCount = 0; lastBallTap = null;
+                setCommissionerMode(!isAdmin.value);
+            };
             const showAchievementDelta = title => { if (!saving.value) { activeBadge.value = { title, desc: TOOLTIPS[title] || 'Details' }; openDialog('achievement'); } };
             const selectPlayer = (user, kind) => {
                 if (!canAdmin.value || saving.value || !usersMap.value[user?.id]) return;
@@ -865,7 +926,7 @@
             };
 
             return { view, tabs, allUsers, activeUsers, retiredCount, monthly, hallOfFame, lifetime, logs, diagnostics, allTimeHigh, form, formError, changePoints, submitScore, overlay, dismissOverlay, activeBadge, currentSeasonName, seasonCountdown, activityDateLabel, entryTime, getName, entrySummary, scoringSummary, historyRows, submitting, scoreWritePending, showSuccess, showAchievementDelta, isAdmin, isReadOnly, canAdmin, dataReady, dataError, status, saving,
-                menuOpen, menuRoot, menuButton, toggleMenu, openMenu, closeMenu, menuKeys, tabKeys, managePlayers, reviewEntries, showLogic,
+                menuOpen, menuRoot, menuButton, toggleMenu, openMenu, closeMenu, menuKeys, tabKeys, managePlayers, reviewEntries, showLogic, showRules, tapCommissionerBall, exitCommissionerMode,
                 officeDialog, dialogView, dialogTitle, dialogError, dialogClosed, closeDialog, search, filteredUsers, selectedPlayer, renameName, beginRename, confirmRename, beginStatusChange, confirmStatusChange, backToPlayers,
                 selectedEntry, editForm, hasEntryChanges, changeEditPoints, saveEntryChanges, beginVoid, backToEdit, voidReasons, voidReason, voidNote, reviewEntry, confirmVoid };
         }
