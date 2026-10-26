@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECBA Slam Jam 2.5.0</title>
+    <title>ECBA Slam Jam 2.6.0</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -146,7 +146,7 @@
                          class="w-32 h-32 drop-shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95"
                          alt="ECBA Logo">
                 </button>
-                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.5.0</p>
+                <p class="text-[8px] opacity-20 font-mono mt-2 tracking-widest uppercase">v2.6.0</p>
             </div>
         </div>
 
@@ -204,8 +204,8 @@
                     </div>
 
                     <table v-show="view === 'lifetime'" id="panel-lifetime" role="tabpanel" aria-labelledby="tab-lifetime" tabindex="0" class="table table-zebra table-sm font-medium">
-                        <thead class="text-warning uppercase text-[10px] tracking-widest"><tr><th>Player</th><th class="text-right">All-Time Pts</th></tr></thead>
-                        <tbody><tr v-for="r in lifetime" :key="r.id" class="hover"><td class="font-black text-sm uppercase">{{ r.name }}</td><td class="text-right font-black text-warning text-lg tracking-tighter">{{ r.pts }}</td></tr></tbody>
+                        <thead class="text-warning uppercase text-[10px] tracking-widest"><tr><th>Player</th><th class="text-right">All-Time Pts</th><th class="text-right">Most in One Day</th></tr></thead>
+                        <tbody><tr v-for="r in lifetime" :key="r.id" class="hover"><td class="font-black text-sm uppercase">{{ r.name }}</td><td class="text-right font-black text-warning text-lg tracking-tighter">{{ r.pts }}</td><td class="text-right font-black text-warning text-lg tracking-tighter">{{ r.dailyHigh }}</td></tr></tbody>
                     </table>
 
                     <ul v-show="view === 'recent'" id="panel-recent" role="tabpanel" aria-labelledby="tab-recent" tabindex="0" class="p-4 space-y-2 max-h-[500px] overflow-y-auto">
@@ -285,7 +285,7 @@
                 </template>
                 <template v-else-if="dialogView === 'rules'">
                     <div class="rules-summary">
-                        <p class="text-xs opacity-70 italic mt-2">An abridged instrument for the orderly administration of disproportionately important office basketball. The full Constitution remains the governing authority.</p>
+                        <p class="text-xs opacity-70 italic mt-2">An abridged instrument for the orderly administration of ECBA Slam Jam. The full Constitution remains the governing authority.</p>
                         <section><h3>I. Know Thy Jurisdiction</h3>
                             <p>Make a ping-pong ball in the regulation hoop. A successful shot earns:</p>
                             <ul><li><strong>1 point:</strong> right-hand table corner — <strong>6 ft 8 in</strong>.</li><li><strong>2 points:</strong> behind the cubicle corner — <strong>9 ft</strong>.</li><li><strong>3 points:</strong> entrance of the first cubicle — <strong>12 ft 8 in</strong>.</li></ul>
@@ -417,7 +417,7 @@
             // Replay is side-effect free: edits/renames/voids never trigger celebrations.
             const validScore = d => d && typeof d.timestamp === 'number' && Number.isFinite(d.timestamp) && !Number.isNaN(new Date(d.timestamp).getTime()) && typeof d.scorerId === 'string' && Number.isSafeInteger(d.points);
             const processData = () => {
-                const mTot = {}, lTot = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, histOrder = {}, logArr = [], lastAction = {}, lastPunisher = {}, lastChange = {}, shown = {};
+                const mTot = {}, lTot = {}, lifetimeDaily = {}, dTot = {}, pCnt = {}, vCnt = {}, mStr = {}, slay = {}, hist = {}, histOrder = {}, logArr = [], lastAction = {}, lastPunisher = {}, lastChange = {}, shown = {};
                 let globalCurP = null, globalCurS = 0, lastS = null, replayMonth = null;
                 seasonDate.value = new Date();
                 const targetSeason = getCalendarDate(seasonDate.value).season;
@@ -440,7 +440,11 @@
                     hist[mk][affected] = (hist[mk][affected] || 0) + pts;
                     histOrder[mk][affected] = order;
                     log.total = hist[mk][affected];
-                    if (pts > 0) lTot[sId] = (lTot[sId] || 0) + pts;
+                    if (pts > 0) {
+                        lTot[sId] = (lTot[sId] || 0) + pts;
+                        lifetimeDaily[sId] ||= {};
+                        lifetimeDaily[sId][date.day] = (lifetimeDaily[sId][date.day] || 0) + pts;
+                    }
                     if (pts < 0) {
                         log.broken = globalCurP === tId && globalCurS >= 2;
                         if (log.broken) { globalCurP = null; globalCurS = 0; }
@@ -496,7 +500,7 @@
                     return { id: uid, name: getName(uid), pts, lastChange: lastChange[uid] ?? null, title, isPR: pts > (hb[uid] || 0), isSkulled: lastAction[uid] === 'punished', justUpdated: uid === lastS, icon: replayMonth === targetSeason && globalCurP === uid ? TIERS[Math.min(globalCurS, 6)]?.icon : '' };
                 }).sort((a,b)=>b.pts-a.pts || (histOrder[targetSeason]?.[b.id] ?? -1) - (histOrder[targetSeason]?.[a.id] ?? -1));
 
-                lifetime.value = Object.entries(lTot).map(([uid, pts]) => ({ id: uid, name: getName(uid), pts })).sort((a,b)=>b.pts-a.pts || lexical(a.id, b.id));
+                lifetime.value = Object.entries(lTot).map(([uid, pts]) => ({ id: uid, name: getName(uid), pts, dailyHigh: Math.max(...Object.values(lifetimeDaily[uid] || {})) })).sort((a,b)=>b.pts-a.pts || lexical(a.id, b.id));
                 const diags = {};
                 Object.entries(mTot).forEach(([uid]) => diags[uid] = { id: uid, name: getName(uid), pActs: pCnt[uid] || 0, vPts: vCnt[uid] || 0, streak: mStr[uid] || 0, dMax: Math.max(0, ...Object.values(dTot[uid] || {})) });
                 diagnostics.value = diags; logs.value = logArr.slice(0, 20); presentations.value = shown;
